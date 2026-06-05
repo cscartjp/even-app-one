@@ -2,6 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Command Rules
+
+- NEVER use grep
+- ALWAYS use rg (ripgrep)
+- NEVER use find
+- ALWAYS use fd
+
+## Search Commands
+
+grep is forbidden.
+
+Always use:
+
+- rg instead of grep
+- fd instead of find
+
+Reason:
+grep is not installed on this machine and commands will fail.
+
 ## リポジトリの目的
 
 Even Realities のスマートグラス **Even G2** 向けアプリ（Even Hub プラグイン）を開発する個人の趣味プロジェクト。Even Realities 社とは無関係（非公式）。
