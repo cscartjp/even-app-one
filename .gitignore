@@ -23,3 +23,4 @@ npm-debug.log*
 # Local agent/session state (not for public repo)
 .claude/
 .harness-mem/
+/skills/
