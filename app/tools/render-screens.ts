@@ -38,6 +38,7 @@ const menuItems = [
   { label: 'グルメ情報', path: GLASS_ROUTES.gourmet },
 ]
 
+/** プレビュー用の AppSnapshot を組み立てる（原点は既定値で固定） */
 function snapshot(selectedGenre: string | null): AppSnapshot {
   return {
     menuItems,
@@ -54,8 +55,10 @@ interface State {
   genre: string | null
 }
 
-const id = (s: State) => `${s.path}|${s.hi}|${s.genre}`
+/** 状態を一意なIDにする。区切り文字衝突を避けるため JSON 配列で表現する */
+const id = (s: State) => JSON.stringify([s.path, s.hi, s.genre])
 
+/** 状態を実コードの toDisplayData に通して表示行を得る */
 function render(s: State): DisplayLine[] {
   return toDisplayData(snapshot(s.genre), {
     screen: deriveScreen(s.path),
@@ -144,12 +147,19 @@ const data = {
   nodes: Object.fromEntries(nodes),
 }
 
-const html = buildHtml(JSON.stringify(data))
+// <script> ブロックを途中終了させない・行区切り文字も壊さないよう JSON をエスケープ。
+// < は JSON.parse で '<' に戻るので埋め込みデータの意味は変わらない。
+const safeJson = JSON.stringify(data)
+  .replace(/</g, '\\u003c')
+  .replace(/\u2028/g, '\\u2028')
+  .replace(/\u2029/g, '\\u2029')
+const html = buildHtml(safeJson)
 await Bun.write(`${import.meta.dir}/../preview/index.html`, html)
 console.log(
   `生成完了: preview/index.html （${nodes.size} 画面状態 / ${data.generatedAt}）`,
 )
 
+/** 焼き込んだ JSON を読み込んで操作する自己完結プレビュー HTML を組み立てる */
 function buildHtml(json: string): string {
   return `<!doctype html>
 <html lang="ja">

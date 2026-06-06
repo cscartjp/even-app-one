@@ -15,12 +15,13 @@ export interface ShopStatus {
   readonly label: string
 }
 
-// 土日のみ判定。祝日は未対応（train と共通の TODO）
+/** 土日のみ判定。祝日は未対応（train と共通の TODO） */
 function isWeekend(date: Date): boolean {
   const day = date.getDay()
   return day === 0 || day === 6
 }
 
+/** 通算分（0:00 起点）を "H:MM" 文字列にする */
 function hhmm(totalMin: number): string {
   const h = Math.floor(totalMin / 60)
   const m = totalMin % 60
@@ -67,6 +68,7 @@ export function statusMark(shop: Shop, now: Date): string {
 
 // ─── 距離 ───
 
+/** 度をラジアンに変換 */
 function toRad(deg: number): number {
   return (deg * Math.PI) / 180
 }
@@ -122,4 +124,19 @@ export function nearbyByGenre(
     .map((s) => ({ shop: s, meters: haversineMeters(origin, s) }))
     .sort((a, b) => a.meters - b.meters)
     .slice(0, limit)
+}
+
+/**
+ * 近い順リストに実際に表示される件数だけを返す（距離計算・ソートをしない軽量版）。
+ * ハイライト移動の範囲計算など、件数のみ必要な場面で使う。
+ */
+export function countNearby(
+  allShops: readonly Shop[],
+  genre: string | null,
+  limit: number = NEAREST_LIMIT,
+): number {
+  const matched = allShops.filter(
+    (s) => genre === null || s.genre === genre,
+  ).length
+  return Math.min(matched, limit)
 }

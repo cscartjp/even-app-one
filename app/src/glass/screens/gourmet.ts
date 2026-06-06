@@ -1,7 +1,7 @@
 import { buildScrollableList } from 'even-toolkit/glass-display-builders'
 import { moveHighlight } from 'even-toolkit/glass-nav'
 import type { GlassScreen } from 'even-toolkit/glass-screen-router'
-import { glassHeader } from 'even-toolkit/types'
+import { glassHeader, line } from 'even-toolkit/types'
 import { listGenres } from '../../data/gourmet'
 import { shops } from '../../data/shops'
 import type { AppActions, AppSnapshot } from '../shared'
@@ -11,10 +11,14 @@ const genres = listGenres(shops)
 
 export const gourmetScreen: GlassScreen<AppSnapshot, AppActions> = {
   display(snapshot, nav) {
+    const header = glassHeader(`グルメ (${snapshot.originLabel})`)
+    if (genres.length === 0) {
+      return { lines: [...header, line('店が登録されていません', 'meta')] }
+    }
     return {
       lines: [
         // 原点が現在地か既定駅かをヘッダーで明示
-        ...glassHeader(`グルメ (${snapshot.originLabel})`),
+        ...header,
         ...buildScrollableList({
           items: genres,
           highlightedIndex: nav.highlightedIndex,
@@ -30,6 +34,8 @@ export const gourmetScreen: GlassScreen<AppSnapshot, AppActions> = {
       ctx.navigate('/')
       return nav
     }
+    // ジャンルが無いときは移動・選択を無視（homeScreen と同じガード）
+    if (genres.length === 0) return nav
     if (action.type === 'HIGHLIGHT_MOVE') {
       return {
         ...nav,

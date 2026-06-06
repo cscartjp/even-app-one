@@ -3,6 +3,7 @@ import { clampIndex, moveHighlight } from 'even-toolkit/glass-nav'
 import type { GlassScreen } from 'even-toolkit/glass-screen-router'
 import { glassHeader, line } from 'even-toolkit/types'
 import {
+  countNearby,
   formatDistance,
   getShopStatus,
   nearbyByGenre,
@@ -58,11 +59,9 @@ export const gourmetNearbyScreen: GlassScreen<AppSnapshot, AppActions> = {
       return nav
     }
     if (action.type === 'HIGHLIGHT_MOVE') {
-      const count = nearbyByGenre(
-        shops,
-        snapshot.selectedGenre,
-        snapshot.origin,
-      ).length
+      // 件数だけ必要なので距離計算・ソートはしない（NEAREST_LIMIT と同期）
+      const count = countNearby(shops, snapshot.selectedGenre)
+      if (count === 0) return nav
       return {
         ...nav,
         highlightedIndex: moveHighlight(

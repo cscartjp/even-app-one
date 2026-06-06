@@ -3,9 +3,11 @@
  *
  * 【使い方】
  *   1. 下の `shops` 配列に自分の店を追記する（{ ... } のブロックを増やすだけ）
- *   2. `defaultOrigin` を、GPS が取れないときの距離の基準点に書き換える
- *   3. 書き終わったら、このファイルの中身を src/data/shops.ts に上書きコピー
- *      （または、このファイルを shops.ts にリネームして元のを置き換え）
+ *   2. `defaultOrigin` / `defaultOriginLabel` を、GPS が取れないときの距離の基準点に書き換える
+ *   3. 書き終わったら、既存の src/data/shops.ts を開き、
+ *      `shops` 配列・`defaultOrigin`・`defaultOriginLabel` の「値だけ」を差し替える。
+ *      ※ このテンプレートを shops.ts に上書き／リネームしないこと
+ *        （下の `import ... from './shops'` が自分自身を指す自己参照 import になり、型解決が壊れる）
  *
  * 【記入のヒント・制約】
  *   - name … 店名。リスト1行は64字までなので短めに（必須）

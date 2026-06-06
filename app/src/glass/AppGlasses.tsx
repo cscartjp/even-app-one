@@ -27,6 +27,10 @@ const deriveScreen = createScreenMapper(
 
 const homeTiles = getHomeTiles(appSplash)
 
+/**
+ * グラス表示のブリッジ。React Router の現在地から画面を導出し、
+ * 状態（原点・選択ジャンル）と GPS 取得を管理して useGlasses に渡す。
+ */
 export function AppGlasses() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -40,8 +44,11 @@ export function AppGlasses() {
   // 起動時に1度だけベストエフォートで現在地を取得（HTTPS等で不可なら既定駅のまま）
   useEffect(() => {
     if (!('geolocation' in navigator)) return
+    // unmount 後にコールバックが来ても state 更新しないようにする
+    let cancelled = false
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (cancelled) return
         setOrigin({ lat: pos.coords.latitude, lon: pos.coords.longitude })
         setOriginLabel('現在地')
       },
@@ -50,6 +57,9 @@ export function AppGlasses() {
       },
       { timeout: 5000, maximumAge: 60000 },
     )
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const snapshotRef = useMemo(
