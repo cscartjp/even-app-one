@@ -2,6 +2,7 @@
 
 > 原文: https://github.com/nickustinov/even-g2-notes/blob/main/docs/browser-ui.md
 > ※ 本ページはコミュニティ製リファレンス [even-g2-notes](https://github.com/nickustinov/even-g2-notes) の非公式な日本語要約です。原文も独自調査に基づく非公式情報です。
+> 📖 **even-toolkit は v1.7.2 で大幅に拡張されています**（Per-Screen アーキテクチャ・STT・scaffold CLI 等）。最新情報は [even-toolkit 日本語要約](../even-toolkit/README.md) を参照。
 
 WebView 内で動く設定/構成ページ（グラスのディスプレイではない方）用の UI には **[even-toolkit](https://github.com/fabioglimb/even-toolkit)** を使う。Even Realities G2 アプリ専用に作られたデザインシステム + コンポーネントライブラリで、React コンポーネント 55+、ピクセルアートアイコン 191 個、デザイントークン、グラス SDK ブリッジを含む。
 

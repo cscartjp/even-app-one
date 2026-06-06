@@ -26,6 +26,8 @@ Web UI(設定ページ・構成画面)向けのコンポーネントライブラ
 | ユーティリティ | `useGlasses` フック、`buildActionBar`、`mapGlassEvent` |
 | デザイントークン | CSS カスタムプロパティ(色・間隔・フォント FK Grotesk Neue)、タイポグラフィ(`.text-vlarge-title` 24px 〜 `.text-detail` 11px) |
 
+- **📖 日本語要約あり: [community/even-toolkit/](even-toolkit/README.md)（全 6 ページ。v1.7.2 基準 — Per-Screen アーキテクチャ・STT・scaffold CLI を含む）**
+
 ## Discord コミュニティ
 
 - 招待リンク: https://discord.gg/Y4jHMCU4sv
@@ -33,4 +35,4 @@ Web UI(設定ページ・構成画面)向けのコンポーネントライブラ
 
 ---
 
-[← 前へ: アプリ提出と QA ガイドライン](../reference/app-submission.md) | [目次に戻る](../README.md) | [次へ: even-g2-notes 日本語要約 →](g2-notes/README.md)
+[← 前へ: アプリ提出と QA ガイドライン](../reference/app-submission.md) | [目次に戻る](../README.md) | [次へ: even-g2-notes 日本語要約 →](g2-notes/README.md) | [even-toolkit 日本語要約 →](even-toolkit/README.md)

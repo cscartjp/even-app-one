@@ -51,6 +51,7 @@
 |---|---|
 | [コミュニティリソース](community/resources.md) | サードパーティ製ツール・Discord |
 | [even-g2-notes 日本語要約](community/g2-notes/README.md) | コミュニティ製リバースエンジニアリングリファレンスの要約（全 10 ページ）。イベントの癖・Unicode グリフ対応・UI パターンなど公式にない実践情報 |
+| [even-toolkit 日本語要約](community/even-toolkit/README.md) | G2 専用デザインシステム + コンポーネントライブラリ（MIT）の公式 docs 要約（全 6 ページ）。**`app/` はこの toolkit の scaffold で生成** |
 
 ## 原文
 
@@ -62,3 +63,8 @@
 
 - 原文リポジトリ: https://github.com/nickustinov/even-g2-notes （非公式・リバースエンジニアリングベース）
 - 要約の基準コミット: `e71a14d`（2026-06-06 取得）
+
+### コミュニティリファレンス（community/even-toolkit/）
+
+- 原文リポジトリ: https://github.com/fabioglimb/even-toolkit （MIT ライセンス）
+- 要約の基準: v1.7.2 / コミット `d12c232`（2026-06-06 取得）
