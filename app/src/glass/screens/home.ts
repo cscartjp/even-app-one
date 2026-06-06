@@ -17,6 +17,7 @@ export const homeScreen: GlassScreen<AppSnapshot, AppActions> = {
 
   action(action, nav, snapshot, ctx) {
     if (action.type === 'HIGHLIGHT_MOVE') {
+      if (snapshot.menuItems.length === 0) return nav
       return {
         ...nav,
         highlightedIndex: moveHighlight(

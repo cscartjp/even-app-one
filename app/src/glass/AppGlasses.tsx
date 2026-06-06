@@ -7,11 +7,17 @@ import { type AppSnapshot, onGlassAction, toDisplayData } from './selectors'
 import type { AppActions } from './shared'
 import { appSplash } from './splash'
 
+const GLASS_ROUTES = {
+  home: '/',
+  train: '/train',
+  gourmet: '/gourmet',
+} as const
+
 const deriveScreen = createScreenMapper(
   [
-    { pattern: '/', screen: 'home' },
-    { pattern: '/train', screen: 'train' },
-    { pattern: '/gourmet', screen: 'gourmet' },
+    { pattern: GLASS_ROUTES.home, screen: 'home' },
+    { pattern: GLASS_ROUTES.train, screen: 'train' },
+    { pattern: GLASS_ROUTES.gourmet, screen: 'gourmet' },
   ],
   'home',
 )
@@ -32,8 +38,8 @@ export function AppGlasses() {
 
   const snapshot: AppSnapshot = {
     menuItems: [
-      { label: '電車情報', path: '/train' },
-      { label: 'グルメ情報', path: '/gourmet' },
+      { label: '電車情報', path: GLASS_ROUTES.train },
+      { label: 'グルメ情報', path: GLASS_ROUTES.gourmet },
     ],
     flashPhase,
   }
