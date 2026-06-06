@@ -15,7 +15,7 @@ export interface Departure {
   dest?: string
 }
 
-/** 土日祝なら true */
+// 土日のみ判定。祝日は未対応（祝日カレンダー導入時に拡張）
 function isWeekend(date: Date): boolean {
   const day = date.getDay()
   return day === 0 || day === 6
@@ -65,8 +65,13 @@ export function getNextDepartures(
   }
 
   if (result.length < count) {
+    const nextDay = new Date(now)
+    nextDay.setDate(nextDay.getDate() + 1)
+    const nextDayTable: Timetable = isWeekend(nextDay)
+      ? direction.weekend
+      : direction.weekday
     for (let h = 5; h <= 23 && result.length < count; h++) {
-      const entries = table[h]
+      const entries = nextDayTable[h]
       if (!entries) continue
       for (const entry of entries) {
         if (result.length >= count) break
