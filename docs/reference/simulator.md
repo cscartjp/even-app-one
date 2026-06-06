@@ -94,4 +94,4 @@ evenhub-simulator <url> --automation-port 9898
 
 ---
 
-[← 前へ: スキルカタログ](../ai-tooling/skill-catalog.md) | [次へ: パッケージングとデプロイ →](packaging.md)
+[← 前へ: even-terminal 調査ノート](../ai-tooling/even-terminal.md) | [次へ: パッケージングとデプロイ →](packaging.md)

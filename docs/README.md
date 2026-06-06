@@ -35,6 +35,7 @@
 |---|---|
 | [Claude Code プラグイン](ai-tooling/claude-code.md) | 公式プラグイン everything-evenhub |
 | [スキルカタログ](ai-tooling/skill-catalog.md) | 13 スキルの一覧と使い分け |
+| [even-terminal 調査ノート](ai-tooling/even-terminal.md) | Terminal Mode ホスト CLI の独自調査（v0.8.1）。起動オプション・モデル/モード固定の実態と回避策 |
 
 ### リファレンス(Reference)
 

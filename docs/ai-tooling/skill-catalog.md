@@ -45,4 +45,4 @@ everything-evenhub プラグインに含まれる Claude Code スキルの一覧
 
 ---
 
-[← 前へ: Claude Code プラグイン](claude-code.md) | [次へ: シミュレーター →](../reference/simulator.md)
+[← 前へ: Claude Code プラグイン](claude-code.md) | [次へ: even-terminal 調査ノート →](even-terminal.md)
