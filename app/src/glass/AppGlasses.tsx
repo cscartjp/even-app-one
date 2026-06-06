@@ -8,7 +8,11 @@ import type { AppActions } from './shared'
 import { appSplash } from './splash'
 
 const deriveScreen = createScreenMapper(
-  [{ pattern: '/', screen: 'home' }],
+  [
+    { pattern: '/', screen: 'home' },
+    { pattern: '/train', screen: 'train' },
+    { pattern: '/gourmet', screen: 'gourmet' },
+  ],
   'home',
 )
 
@@ -27,7 +31,10 @@ export function AppGlasses() {
   )
 
   const snapshot: AppSnapshot = {
-    items: ['Welcome to Hisho', 'Edit App.tsx to get started'],
+    menuItems: [
+      { label: '電車情報', path: '/train' },
+      { label: 'グルメ情報', path: '/gourmet' },
+    ],
     flashPhase,
   }
   snapshotRef.current = snapshot

@@ -1,5 +1,10 @@
+export interface MenuItem {
+  label: string
+  path: string
+}
+
 export interface AppSnapshot {
-  items: string[]
+  menuItems: MenuItem[]
   flashPhase: boolean
 }
 
