@@ -127,8 +127,19 @@ while (queue.length) {
   })
 }
 
+// 実機で最初に出る起動（スプラッシュ）画面を先頭に注入。
+// glass-router の画面ではないので手動で足し、どのジェスチャーでもホームへ進む。
+const homeId = id(start)
+const splashId = '__splash__'
+nodes.set(splashId, {
+  id: splashId,
+  screen: 'splash',
+  lines: [],
+  trans: { tap: homeId, up: homeId, down: homeId, back: homeId },
+})
+
 const data = {
-  startId: id(start),
+  startId: splashId,
   generatedAt: new Date().toISOString(),
   nodes: Object.fromEntries(nodes),
 }
@@ -176,6 +187,15 @@ function buildHtml(json: string): string {
   .row.hot{ color:#04140a; background:var(--g); border-radius:4px;
     text-shadow:none; font-weight:600; padding:0 4px; margin:0 -4px; }
 
+  /* 起動（スプラッシュ）画面 */
+  .splash{ position:relative; z-index:1; height:100%; display:flex;
+    flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .splash .logo{ font-size:54px; font-weight:700; letter-spacing:.12em;
+    color:var(--g-hot); text-shadow:0 0 16px rgba(120,250,120,.6); }
+  .splash .tag{ font-size:16px; color:var(--g-dim); letter-spacing:.2em; }
+  .splash .hint{ position:absolute; bottom:8px; font-size:13px; color:#2f7d3a;
+    letter-spacing:.1em; }
+
   .scale{ display:flex; justify-content:center; }
   .scaler{ transform:scale(1.18); transform-origin:top center; margin-bottom:70px; }
 
@@ -197,7 +217,7 @@ function buildHtml(json: string): string {
 
   <div class="screen-name" id="screenName"></div>
   <div class="scale"><div class="scaler">
-    <div class="glass"><div class="rows" id="rows"></div></div>
+    <div class="glass"><div id="screen"></div></div>
   </div></div>
 
   <div class="legend">テンプルのタッチパッド操作を再現： 上/下スワイプ＝選択移動、タップ＝決定、ダブルタップ＝戻る</div>
@@ -211,14 +231,14 @@ function buildHtml(json: string): string {
 
   <p class="meta">
     キーボード: <kbd>↑</kbd><kbd>↓</kbd> スワイプ ・ <kbd>Enter</kbd> タップ ・ <kbd>Backspace</kbd> 戻る<br>
-    <span id="genAt"></span> 時点の生成（電車の「あと◯分」は生成時刻基準）。<kbd>ホーム</kbd>から電車・グルメへ進めます。
+    <span id="genAt"></span> 時点の生成（電車の「あと◯分」は生成時刻基準）。起動画面→ホーム→電車／グルメと進めます。
   </p>
 </div>
 
 <script id="data" type="application/json">${json}</script>
 <script>
   const DATA = JSON.parse(document.getElementById('data').textContent);
-  const NAMES = { home:'ホーム', train:'電車（時刻表）', gourmet:'グルメ（ジャンル選択）', gourmetNearby:'グルメ（近い順）' };
+  const NAMES = { splash:'起動画面', home:'ホーム', train:'電車（時刻表）', gourmet:'グルメ（ジャンル選択）', gourmetNearby:'グルメ（近い順）' };
   const PREFIX = '  ';
   let cur = DATA.startId;
 
@@ -236,8 +256,19 @@ function buildHtml(json: string): string {
   function render(){
     const node = DATA.nodes[cur];
     document.getElementById('screenName').textContent = NAMES[node.screen] || node.screen;
-    const rows = document.getElementById('rows');
-    rows.innerHTML = '';
+    const screen = document.getElementById('screen');
+    if(node.screen === 'splash'){
+      screen.innerHTML =
+        '<div class="splash">'+
+          '<div class="logo">HISHO</div>'+
+          '<div class="tag">あなたのスマート秘書</div>'+
+          '<div class="hint">▶ タップで開始</div>'+
+        '</div>';
+      return;
+    }
+    screen.innerHTML = '';
+    const rows = document.createElement('div');
+    rows.className = 'rows';
     for(let i=0;i<10;i++){
       const l = node.lines[i];
       const div = document.createElement('div');
@@ -245,6 +276,7 @@ function buildHtml(json: string): string {
       div.textContent = l ? rowText(l) : '';
       rows.appendChild(div);
     }
+    screen.appendChild(rows);
   }
   function go(key){
     const node = DATA.nodes[cur];
