@@ -1,8 +1,8 @@
 /**
- * 「今開いてる店」ロジック。
- * train の getNextDepartures(now) と対になる、現在時刻ベースの状態計算。
+ * グルメ：ジャンル絞り込み・距離計算・「今開いてる店」状態。
+ * 距離の原点(GeoPoint)は GPS / 既定駅どちらでも同じロジックで動く。
  */
-import type { Shop, TimeRange } from './shops'
+import type { GeoPoint, Shop, TimeRange } from './shops'
 
 /** 閉店間際とみなすしきい値（分） */
 const CLOSING_SOON_MIN = 30
@@ -11,10 +11,8 @@ export type ShopState = 'open' | 'closing-soon' | 'closed'
 
 export interface ShopStatus {
   readonly state: ShopState
-  /** 表示用ラベル（例: 「営業中 〜22:00」「あと20分で閉店」「17:30開店」「定休」） */
+  /** 表示用ラベル（例:「営業中 〜22:00」「あと20分で閉店」「17:30開店」「定休」） */
   readonly label: string
-  /** 並び替え用キー（小さいほど上位）。営業中→間もなく開く→閉店済み の順 */
-  readonly sortKey: number
 }
 
 // 土日のみ判定。祝日は未対応（train と共通の TODO）
@@ -30,7 +28,7 @@ function hhmm(totalMin: number): string {
 }
 
 /** その日の営業帯を返す */
-export function todayRanges(shop: Shop, now: Date): readonly TimeRange[] {
+function todayRanges(shop: Shop, now: Date): readonly TimeRange[] {
   return isWeekend(now) ? shop.weekend : shop.weekday
 }
 
@@ -39,56 +37,79 @@ export function getShopStatus(shop: Shop, now: Date): ShopStatus {
   const ranges = todayRanges(shop, now)
   const nowMin = now.getHours() * 60 + now.getMinutes()
 
-  if (ranges.length === 0) {
-    return { state: 'closed', label: '定休', sortKey: 300 }
-  }
+  if (ranges.length === 0) return { state: 'closed', label: '定休' }
 
-  // 営業中の帯を探す
   for (const range of ranges) {
     if (nowMin >= range.open && nowMin < range.close) {
       const left = range.close - nowMin
       if (left <= CLOSING_SOON_MIN) {
-        return {
-          state: 'closing-soon',
-          label: `あと${left}分で閉店`,
-          sortKey: 100 - left, // 閉店が近いほど上に
-        }
+        return { state: 'closing-soon', label: `あと${left}分で閉店` }
       }
-      return {
-        state: 'open',
-        label: `営業中 〜${hhmm(range.close)}`,
-        sortKey: 0,
-      }
+      return { state: 'open', label: `営業中 〜${hhmm(range.close)}` }
     }
   }
 
-  // これから開く帯を探す
   let nextOpen = Number.POSITIVE_INFINITY
   for (const range of ranges) {
     if (range.open > nowMin && range.open < nextOpen) nextOpen = range.open
   }
   if (nextOpen !== Number.POSITIVE_INFINITY) {
-    const wait = nextOpen - nowMin
-    return {
-      state: 'closed',
-      label: `${hhmm(nextOpen)}開店`,
-      sortKey: 200 + wait, // 開店が早い順
-    }
+    return { state: 'closed', label: `${hhmm(nextOpen)}開店` }
   }
-
-  return { state: 'closed', label: '本日終了', sortKey: 280 }
+  return { state: 'closed', label: '本日終了' }
 }
 
-/** 開いてる店を上に並べ替えて返す（元配列は不変） */
-export function sortShops(shops: readonly Shop[], now: Date): Shop[] {
-  return [...shops].sort(
-    (a, b) => getShopStatus(a, now).sortKey - getShopStatus(b, now).sortKey,
-  )
-}
-
-/** リスト1行用：状態マーク＋店名 */
-export function formatShopLine(shop: Shop, now: Date): string {
+/** 状態マーク（●営業中 ◐閉店間際 ○閉店） */
+export function statusMark(shop: Shop, now: Date): string {
   const { state } = getShopStatus(shop, now)
-  const mark = state === 'open' ? '●' : state === 'closing-soon' ? '◐' : '○'
-  return `${mark} ${shop.name}`
+  return state === 'open' ? '●' : state === 'closing-soon' ? '◐' : '○'
+}
+
+// ─── 距離 ───
+
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180
+}
+
+/** 2点間の距離（メートル）。ハバーサイン公式 */
+export function haversineMeters(a: GeoPoint, b: GeoPoint): number {
+  const R = 6371000
+  const dLat = toRad(b.lat - a.lat)
+  const dLon = toRad(b.lon - a.lon)
+  const la1 = toRad(a.lat)
+  const la2 = toRad(b.lat)
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
+
+/** 距離の表示用フォーマット（〜1km は m、それ以上は km） */
+export function formatDistance(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters / 10) * 10}m`
+  return `${(meters / 1000).toFixed(1)}km`
+}
+
+// ─── ジャンル・近い順 ───
+
+/** 重複なしのジャンル一覧（出現順） */
+export function listGenres(allShops: readonly Shop[]): string[] {
+  return [...new Set(allShops.map((s) => s.genre))]
+}
+
+export interface NearbyItem {
+  readonly shop: Shop
+  readonly meters: number
+}
+
+/** ジャンルで絞り、原点から近い順に並べる（genre=null は全件） */
+export function nearbyByGenre(
+  allShops: readonly Shop[],
+  genre: string | null,
+  origin: GeoPoint,
+): NearbyItem[] {
+  return allShops
+    .filter((s) => genre === null || s.genre === genre)
+    .map((s) => ({ shop: s, meters: haversineMeters(origin, s) }))
+    .sort((a, b) => a.meters - b.meters)
 }

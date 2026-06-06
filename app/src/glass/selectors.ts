@@ -1,5 +1,6 @@
 import { createGlassScreenRouter } from 'even-toolkit/glass-screen-router'
 import { gourmetScreen } from './screens/gourmet'
+import { gourmetNearbyScreen } from './screens/gourmet-nearby'
 import { homeScreen } from './screens/home'
 import { trainScreen } from './screens/train'
 import type { AppActions, AppSnapshot } from './shared'
@@ -14,6 +15,7 @@ export const { toDisplayData, onGlassAction } = createGlassScreenRouter<
     home: homeScreen,
     train: trainScreen,
     gourmet: gourmetScreen,
+    gourmetNearby: gourmetNearbyScreen,
   },
   'home',
 )
