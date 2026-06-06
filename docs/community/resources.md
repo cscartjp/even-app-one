@@ -10,6 +10,7 @@
 - リポジトリ: https://github.com/nickustinov/even-g2-notes/blob/main/docs/README.md
 - 内容: アーキテクチャ詳解、Unicode グリフの完全な対応表、SDK の癖、エラーコード、注釈付きサンプル
 - 実装例: チェス、Reddit、天気、Tesla 車両ステータス、Pong、Snake など(各種アーキテクチャパターンの実例)
+- **📖 日本語要約あり: [community/g2-notes/](g2-notes/README.md)（全 10 ページ）**
 
 ## Even Toolkit
 
@@ -32,4 +33,4 @@ Web UI(設定ページ・構成画面)向けのコンポーネントライブラ
 
 ---
 
-[← 前へ: アプリ提出と QA ガイドライン](../reference/app-submission.md) | [目次に戻る](../README.md)
+[← 前へ: アプリ提出と QA ガイドライン](../reference/app-submission.md) | [目次に戻る](../README.md) | [次へ: even-g2-notes 日本語要約 →](g2-notes/README.md)

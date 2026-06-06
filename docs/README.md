@@ -50,9 +50,15 @@
 | ページ | 内容 |
 |---|---|
 | [コミュニティリソース](community/resources.md) | サードパーティ製ツール・Discord |
+| [even-g2-notes 日本語要約](community/g2-notes/README.md) | コミュニティ製リバースエンジニアリングリファレンスの要約（全 10 ページ）。イベントの癖・Unicode グリフ対応・UI パターンなど公式にない実践情報 |
 
 ## 原文
 
 - 公式ドキュメント: https://hub.evenrealities.com/docs/getting-started/overview
 - 各ページ末尾に対応する原文 URL を記載しています
 - 要約の基準日: 2026-06-06
+
+### コミュニティリファレンス（community/g2-notes/）
+
+- 原文リポジトリ: https://github.com/nickustinov/even-g2-notes （非公式・リバースエンジニアリングベース）
+- 要約の基準コミット: `e71a14d`（2026-06-06 取得）
