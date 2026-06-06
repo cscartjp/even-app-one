@@ -1,22 +1,34 @@
 import type { GlassScreen } from 'even-toolkit/glass-screen-router'
 import { glassHeader, line } from 'even-toolkit/types'
+import { ohoDirections } from '../../data/oho-timetable'
+import { formatDeparture, getNextDepartures } from '../../data/timetable'
 import type { AppActions, AppSnapshot } from '../shared'
 
-// 仮データ。MVP で同梱の時刻表 JSON に置き換える(大保は普通のみ停車)
-const mockDepartures = [
-  '09:12 普通 福岡(天神)行',
-  '09:27 普通 福岡(天神)行',
-  '09:42 普通 福岡(天神)行',
-]
+const DISPLAY_COUNT = 5
+const DIRECTION_COUNT = ohoDirections.length // 2: 天神方面 / 大牟田方面
 
 export const trainScreen: GlassScreen<AppSnapshot, AppActions> = {
-  display() {
+  display(_snapshot, nav) {
+    const dirIdx = nav.highlightedIndex % DIRECTION_COUNT
+    const direction = ohoDirections[dirIdx]
+    const now = new Date()
+    const departures = getNextDepartures(direction, now, DISPLAY_COUNT)
+
+    if (departures.length === 0) {
+      return {
+        lines: [
+          ...glassHeader(`大保 → ${direction.label}`),
+          line('本日の運行は終了しました'),
+        ],
+      }
+    }
+
     return {
       lines: [
-        ...glassHeader('大保 → 福岡(天神)方面'),
-        ...mockDepartures.map((d) => line(d)),
+        ...glassHeader(`大保 → ${direction.label}`),
+        ...departures.map((d) => line(formatDeparture(d))),
         line(''),
-        line('※モックデータ', 'meta'),
+        line('↕方面切替', 'meta'),
       ],
     }
   },
@@ -24,6 +36,15 @@ export const trainScreen: GlassScreen<AppSnapshot, AppActions> = {
   action(action, nav, _snapshot, ctx) {
     if (action.type === 'GO_BACK') {
       ctx.navigate('/')
+      return nav
+    }
+    if (action.type === 'HIGHLIGHT_MOVE') {
+      // UP/DOWN で方面を切り替え (0 ↔ 1)
+      const next =
+        action.direction === 'up'
+          ? (nav.highlightedIndex - 1 + DIRECTION_COUNT) % DIRECTION_COUNT
+          : (nav.highlightedIndex + 1) % DIRECTION_COUNT
+      return { ...nav, highlightedIndex: next }
     }
     return nav
   },
