@@ -52,6 +52,7 @@
 | [コミュニティリソース](community/resources.md) | サードパーティ製ツール・Discord |
 | [even-g2-notes 日本語要約](community/g2-notes/README.md) | コミュニティ製リバースエンジニアリングリファレンスの要約（全 10 ページ）。イベントの癖・Unicode グリフ対応・UI パターンなど公式にない実践情報 |
 | [even-toolkit 日本語要約](community/even-toolkit/README.md) | G2 専用デザインシステム + コンポーネントライブラリ（MIT）の公式 docs 要約（全 6 ページ）。**`app/` はこの toolkit の scaffold で生成** |
+| [日本語コミュニティ記事まとめ](community/jp-articles/README.md) | Zenn の日本語記事 3 本の要約（全 3 ページ）。入門手順・SDK 実測値・実機の罠と審査詳解 |
 
 ## 原文
 
@@ -68,3 +69,8 @@
 
 - 原文リポジトリ: https://github.com/fabioglimb/even-toolkit （MIT ライセンス）
 - 要約の基準: v1.7.2 / コミット `d12c232`（2026-06-06 取得）
+
+### 日本語コミュニティ記事（community/jp-articles/）
+
+- 原文: Zenn の個人記事 3 本（miyaura 氏 / bigdra 氏 / gpsnmeajp 氏）。各ページ冒頭に原文 URL を記載
+- 要約の基準日: 2026-06-06 取得（gpsnmeajp 氏のスクラップは随時更新されるため注意）

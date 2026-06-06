@@ -33,6 +33,14 @@ Web UI(設定ページ・構成画面)向けのコンポーネントライブラ
 - 招待リンク: https://discord.gg/Y4jHMCU4sv
 - 用途: サポート、バグ報告、開発者同士のディスカッション
 
+## 日本語コミュニティ記事（本リポジトリ独自の追加項目）
+
+> ※ 公式の Community Resources ページには載っていない、本リポジトリ独自のまとめ。
+
+Zenn 上の日本語記事 3 本（入門手順・SDK 実測値・実機の罠と審査詳解）の要約。
+
+- **📖 [community/jp-articles/](jp-articles/README.md)（全 3 ページ）**
+
 ---
 
-[← 前へ: アプリ提出と QA ガイドライン](../reference/app-submission.md) | [目次に戻る](../README.md) | [次へ: even-g2-notes 日本語要約 →](g2-notes/README.md) | [even-toolkit 日本語要約 →](even-toolkit/README.md)
+[← 前へ: アプリ提出と QA ガイドライン](../reference/app-submission.md) | [目次に戻る](../README.md) | [次へ: even-g2-notes 日本語要約 →](g2-notes/README.md) | [even-toolkit 日本語要約 →](even-toolkit/README.md) | [日本語記事まとめ →](jp-articles/README.md)
