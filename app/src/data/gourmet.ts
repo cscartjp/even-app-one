@@ -102,14 +102,24 @@ export interface NearbyItem {
   readonly meters: number
 }
 
-/** ジャンルで絞り、原点から近い順に並べる（genre=null は全件） */
+/**
+ * 近い順で表示する最大件数。
+ * 登録店が増えても1件ずつのスワイプ閲覧が重くならないための上限。
+ */
+export const NEAREST_LIMIT = 20
+
+/**
+ * ジャンルで絞り、原点から近い順に並べて上位 limit 件を返す（genre=null は全件）。
+ */
 export function nearbyByGenre(
   allShops: readonly Shop[],
   genre: string | null,
   origin: GeoPoint,
+  limit: number = NEAREST_LIMIT,
 ): NearbyItem[] {
   return allShops
     .filter((s) => genre === null || s.genre === genre)
     .map((s) => ({ shop: s, meters: haversineMeters(origin, s) }))
     .sort((a, b) => a.meters - b.meters)
+    .slice(0, limit)
 }
