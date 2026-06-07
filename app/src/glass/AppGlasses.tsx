@@ -41,24 +41,25 @@ export function AppGlasses() {
   const [originLabel, setOriginLabel] = useState<string>(defaultOriginLabel)
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null)
 
-  // 起動時に1度だけベストエフォートで現在地を取得（HTTPS等で不可なら既定駅のまま）
+  // ベストエフォートで現在地を監視（HTTPS等で不可なら既定駅のまま）。
+  // Hub の WebView では getCurrentPosition(timeout付き) が初回フィックス前に
+  // タイムアウトしやすく、コミュニティでは watchPosition の動作実績あり
+  // （docs/community/jp-articles/02-bigdra-sdk-features.md）。
+  // タイムアウトは設けず、フィックスが来るたびに原点を更新する。
   useEffect(() => {
     if (!('geolocation' in navigator)) return
-    // unmount 後にコールバックが来ても state 更新しないようにする
-    let cancelled = false
-    navigator.geolocation.getCurrentPosition(
+    const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        if (cancelled) return
         setOrigin({ lat: pos.coords.latitude, lon: pos.coords.longitude })
         setOriginLabel('現在地')
       },
       () => {
         // 取得失敗・拒否・非セキュアコンテキスト → 既定駅のまま
       },
-      { timeout: 5000, maximumAge: 60000 },
+      { maximumAge: 60000 },
     )
     return () => {
-      cancelled = true
+      navigator.geolocation.clearWatch(watchId)
     }
   }, [])
 
