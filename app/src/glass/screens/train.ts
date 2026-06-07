@@ -9,13 +9,15 @@ import {
 } from '../../data/timetable'
 import { type AppActions, type AppSnapshot, statusBarLine } from '../shared'
 
-/**
- * 左カラムの目標幅 (px)。DASH_PX=20 の倍数にして ┼ と │ を同一ピクセル位置に揃える。
- * 最長パターン「HH:MM   99分後 ★」≈158px のため 160px（= 20×8）を採用。
- */
-const LEFT_COL_TARGET_PX = 160
 const SPACE_PX = getTextWidth(' ')
 const DASH_PX = getTextWidth('─')
+/** 左カラムの罫線文字数。┼ の x 位置 = LEFT_COL_DASHES × DASH_PX に正確に一致する */
+const LEFT_COL_DASHES = 8
+/**
+ * 左カラムの目標幅 (px)。DASH_PX の倍数にして ┼ と │ を同一ピクセル位置に揃える。
+ * 最長パターン「HH:MM   99分後 ★」≈158px のため 160px（= 20×8）を採用。
+ */
+const LEFT_COL_TARGET_PX = LEFT_COL_DASHES * DASH_PX
 
 /** 左カラムテキストを LEFT_COL_TARGET_PX に揃える（末尾スペースで右パディング） */
 function padLeft(text: string): string {
@@ -38,6 +40,10 @@ function twoColLine(leftText: string, rightText: string): string {
  */
 function formatLeft(dep: Departure): string {
   const mark = dep.ltdExpress ? '◆' : dep.express ? '★' : ''
+  if (dep.nextDay) {
+    // 翌日の便は分後を出さない（100分超で左カラム幅 160px を壊さないため）
+    return mark ? `${dep.time} ${mark}` : dep.time
+  }
   if (dep.minutesLeft === 0) {
     return mark ? `${dep.time}  まもなく ${mark}` : `${dep.time}  まもなく`
   }
@@ -52,13 +58,12 @@ function formatLeft(dep: Departure): string {
  * ┼ x 位置 = leftDashes × DASH_PX = LEFT_COL_TARGET_PX （正確に一致）。
  */
 function buildSeparator(rightDeps: Departure[]): string {
-  const leftDashes = LEFT_COL_TARGET_PX / DASH_PX // 整数（160/20=8）
   const maxRightPx = Math.max(
     ...rightDeps.map((d) => getTextWidth(` ${formatDeparture(d)}`)),
     0,
   )
   const rightDashes = Math.max(1, Math.ceil(maxRightPx / DASH_PX))
-  return `${'─'.repeat(leftDashes)}┼${'─'.repeat(rightDashes)}`
+  return `${'─'.repeat(LEFT_COL_DASHES)}┼${'─'.repeat(rightDashes)}`
 }
 
 const DISPLAY_COUNT = 4

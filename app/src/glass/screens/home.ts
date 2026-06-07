@@ -10,7 +10,8 @@ const MENU_TRAIN = 0
 const MENU_GOURMET = 1
 
 /**
- * 次発時刻を "HH:MM" 形式で返す。運行終了の場合は "--:--" を返す。
+ * 次発時刻を "HH:MM" 形式で返す。終電後は翌日始発が「翌HH:MM」で返る
+ * （getNextDepartures が翌日分まで探すため）。時刻表が完全に空の場合のみ "--:--"。
  */
 function nextDepartureTime(
   direction: Parameters<typeof getNextDepartures>[0],

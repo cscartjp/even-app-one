@@ -15,6 +15,8 @@ export interface Departure {
   ltdExpress?: true
   /** 行き先短縮名 */
   dest?: string
+  /** 翌日の便（time は「翌HH:MM」） */
+  nextDay?: true
 }
 
 // 曜日でダイヤ表を選択。祝日は未対応（祝日カレンダー導入時に拡張）
@@ -41,6 +43,7 @@ function toDeparture(
     ...(entry.express && { express: true }),
     ...(entry.ltdExpress && { ltdExpress: true }),
     ...(entry.dest && { dest: entry.dest }),
+    ...(nextDay && { nextDay: true }),
   }
 }
 
@@ -87,14 +90,23 @@ export function getNextDepartures(
 /**
  * 発車情報を G2 表示用の1行文字列にフォーマット（◆特急 ★急行 無印=普通）
  * 新仕様: 種別マークは分後テキストの後ろ「HH:MM 行き先 N分後 ◆」（1スペース区切り）
+ * 翌日の便は分後を出さない（「翌05:30 小郡 ★」。100分超で2カラム幅を壊さないため）
  */
 export function formatDeparture(dep: Departure): string {
   const wait = dep.minutesLeft === 0 ? 'まもなく' : `${dep.minutesLeft}分後`
   const mark = dep.ltdExpress ? '◆' : dep.express ? '★' : ''
   if (dep.dest) {
+    if (dep.nextDay) {
+      return mark
+        ? `${dep.time} ${dep.dest} ${mark}`
+        : `${dep.time} ${dep.dest}`
+    }
     return mark
       ? `${dep.time} ${dep.dest} ${wait} ${mark}`
       : `${dep.time} ${dep.dest} ${wait}`
+  }
+  if (dep.nextDay) {
+    return mark ? `${dep.time} ${mark}` : dep.time
   }
   return mark ? `${dep.time} ${wait} ${mark}` : `${dep.time}  ${wait}`
 }
