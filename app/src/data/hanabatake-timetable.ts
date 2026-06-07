@@ -8,8 +8,9 @@
  * 普3（普通・筑紫より急行）は急行扱いとし、データ上は p3 ヘルパーで区別を残す。
  * 行き先は終点の西鉄福岡(天神)を既定とし、途中止まり（二日市・久留米）のみ dest を付ける。
  *
- * TODO: 土曜・日祝ダイヤ受領後に weekend / saturday を実データへ差し替える
- * （現在 weekend は平日ダイヤの仮置きで、土日祝の表示は不正確）。
+ * saturday には土曜ダイヤを格納（土曜に普3はない）。
+ * TODO: 日祝ダイヤ受領後に weekend を実データへ差し替える
+ * （現在 weekend は土曜ダイヤの仮置き。日祝＝土曜なら saturday を外して統合）。
  */
 
 import type {
@@ -54,13 +55,39 @@ const upWeekday: Timetable = {
   23: [t(1, '二日市'), t(23, '二日市'), t(44, '久留米')],
 }
 
+// ─── 福岡(天神)方面（上り・土曜） ───
+// 甘木線直通は除外済み
+
+const upSaturday: Timetable = {
+  5: [d(25), d(50), ltd(54)],
+  6: [e(1), e(15), e(34), d(44), e(51)],
+  7: [d(2), e(15), d(28), e(36), e(46), d(50), e(58)],
+  8: [d(16), ltd(20), e(35), d(46), ltd(50)],
+  9: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  10: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  11: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  12: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  13: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  14: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  15: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  16: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  17: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  18: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  19: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  20: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  21: [e(5), d(16), ltd(20), e(35), d(46), ltd(50)],
+  22: [e(5), e(21), d(41), e(57)],
+  23: [t(1, '二日市'), t(23, '二日市'), t(44, '久留米')],
+}
+
 // ─── エクスポート ───
 
 export const hanabatakeUp: DirectionSchedule = {
   label: '福岡(天神)方面',
   weekday: upWeekday,
-  // TODO: 土日祝ダイヤ受領後に差し替え（暫定で平日を仮置き）
-  weekend: upWeekday,
+  // TODO: 日祝ダイヤ受領後に差し替え（暫定で土曜を仮置き）
+  weekend: upSaturday,
+  saturday: upSaturday,
 }
 
 export const hanabatakeDirections: readonly DirectionSchedule[] = [hanabatakeUp]
