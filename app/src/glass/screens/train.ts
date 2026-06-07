@@ -2,7 +2,7 @@ import type { GlassScreen } from 'even-toolkit/glass-screen-router'
 import { glassHeader, line } from 'even-toolkit/types'
 import { nearestStation } from '../../data/stations'
 import { formatDeparture, getNextDepartures } from '../../data/timetable'
-import type { AppActions, AppSnapshot } from '../shared'
+import { type AppActions, type AppSnapshot, statusBarLine } from '../shared'
 
 const DISPLAY_COUNT = 5
 
@@ -18,6 +18,7 @@ export const trainScreen: GlassScreen<AppSnapshot, AppActions> = {
     if (departures.length === 0) {
       return {
         lines: [
+          statusBarLine(now),
           ...glassHeader(`${station.name} → ${direction.label}`),
           line('本日の運行は終了しました'),
         ],
@@ -26,6 +27,7 @@ export const trainScreen: GlassScreen<AppSnapshot, AppActions> = {
 
     return {
       lines: [
+        statusBarLine(now),
         ...glassHeader(`${station.name} → ${direction.label}`),
         ...departures.map((d) => line(formatDeparture(d))),
         line(''),
