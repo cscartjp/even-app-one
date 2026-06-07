@@ -1,11 +1,16 @@
 {
-  "package_id": "com.example.hisho",
+  "package_id": "com.frogman.hisho",
   "edition": "202601",
   "name": "Hisho",
   "version": "0.1.0",
   "min_app_version": "2.0.0",
   "min_sdk_version": "0.0.10",
   "entrypoint": "index.html",
-  "permissions": [],
-  "supported_languages": ["en"]
+  "permissions": [
+    {
+      "name": "location",
+      "desc": "現在地から最寄り駅の時刻表と、近くの飲食店を距離順に表示するために位置情報を使用します。"
+    }
+  ],
+  "supported_languages": ["en", "ja"]
 }
