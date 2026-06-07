@@ -12,8 +12,5 @@
       "desc": "現在地から最寄り駅の時刻表と、近くの飲食店を距離順に表示するために位置情報を使用します。"
     }
   ],
-  "supported_languages": [
-    "en",
-    "ja"
-  ]
+  "supported_languages": ["en", "ja"]
 }

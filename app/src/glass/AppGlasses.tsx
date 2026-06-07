@@ -82,6 +82,7 @@ export function AppGlasses() {
   }
   snapshotRef.current = snapshot
 
+  // biome-ignore lint/style/noNonNullAssertion: 直前のレンダーで必ず代入済み
   const getSnapshot = useCallback(() => snapshotRef.current!, [snapshotRef])
 
   const ctxRef = useRef<AppActions>({ navigate, setGenre: setSelectedGenre })
