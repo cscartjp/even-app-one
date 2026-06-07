@@ -17,10 +17,12 @@ export interface Departure {
   dest?: string
 }
 
-// 土日のみ判定。祝日は未対応（祝日カレンダー導入時に拡張）
-function isWeekend(date: Date): boolean {
+// 曜日でダイヤ表を選択。祝日は未対応（祝日カレンダー導入時に拡張）
+function tableFor(direction: DirectionSchedule, date: Date): Timetable {
   const day = date.getDay()
-  return day === 0 || day === 6
+  if (day === 6) return direction.saturday ?? direction.weekend
+  if (day === 0) return direction.weekend
+  return direction.weekday
 }
 
 function toDeparture(
@@ -48,9 +50,7 @@ export function getNextDepartures(
   now: Date,
   count: number,
 ): Departure[] {
-  const table: Timetable = isWeekend(now)
-    ? direction.weekend
-    : direction.weekday
+  const table: Timetable = tableFor(direction, now)
   const nowH = now.getHours()
   const nowM = now.getMinutes()
   const nowTotal = nowH * 60 + nowM
@@ -70,9 +70,7 @@ export function getNextDepartures(
   if (result.length < count) {
     const nextDay = new Date(now)
     nextDay.setDate(nextDay.getDate() + 1)
-    const nextDayTable: Timetable = isWeekend(nextDay)
-      ? direction.weekend
-      : direction.weekday
+    const nextDayTable: Timetable = tableFor(direction, nextDay)
     for (let h = 5; h <= 23 && result.length < count; h++) {
       const entries = nextDayTable[h]
       if (!entries) continue

@@ -19,7 +19,10 @@ export type Timetable = Readonly<Record<number, readonly DepartureEntry[]>>
 export interface DirectionSchedule {
   readonly label: string
   readonly weekday: Timetable
+  /** 土日祝ダイヤ（saturday を持つ駅では日祝のみ） */
   readonly weekend: Timetable
+  /** 土曜が日祝と異なる駅のみ指定。省略時は weekend を共用 */
+  readonly saturday?: Timetable
 }
 
 const d = (m: number): DepartureEntry => ({ m })

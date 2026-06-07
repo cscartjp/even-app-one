@@ -7,8 +7,8 @@
  * 急E（西鉄二日市より普通）・急C（筑紫より普通）は表示上★急行扱いとし、
  * データ上は exE / exC ヘルパーで区別を残す。
  *
- * weekend には日祝ダイヤを格納。
- * TODO: 土曜ダイヤ受領後、日祝と同一なら統合のまま・異なれば構造を拡張する。
+ * weekend には日祝ダイヤを、saturday には土曜ダイヤを格納
+ * （土曜は6時台のみ日祝と異なるため、日祝のスプレッド＋6時台上書きで定義）。
  */
 
 import type {
@@ -518,12 +518,21 @@ const downHoliday: Timetable = {
   ],
 }
 
+// ─── 大牟田方面（下り・土曜） ───
+// 6時台のみ日祝と異なる（他の全時間帯は日祝と同一）
+
+const downSaturday: Timetable = {
+  ...downHoliday,
+  6: [p(13, '花畑'), p(25, '小郡'), ltd(30), exE(44, '筑紫'), p(46, '大善寺')],
+}
+
 // ─── エクスポート ───
 
 export const tenjinDown: DirectionSchedule = {
   label: '大牟田方面',
   weekday: downWeekday,
   weekend: downHoliday,
+  saturday: downSaturday,
 }
 
 export const tenjinDirections: readonly DirectionSchedule[] = [tenjinDown]
