@@ -18,7 +18,7 @@ let bridgePromise: Promise<
   Awaited<ReturnType<typeof waitForEvenAppBridge>>
 > | null = null
 
-/** bridge の取得を試みる。失敗した場合は null を返す（フォールバック判定用） */
+/** bridge の取得を試みる。失敗またはタイムアウト時は null を返す（フォールバック判定用） */
 async function tryGetBridge(): Promise<Awaited<
   ReturnType<typeof waitForEvenAppBridge>
 > | null> {
@@ -26,9 +26,21 @@ async function tryGetBridge(): Promise<Awaited<
     if (!bridgePromise) {
       bridgePromise = waitForEvenAppBridge()
     }
-    return await bridgePromise
+    // dev/シミュレーター環境では waitForEvenAppBridge が永久 pending になる場合があるため
+    // 1500ms でタイムアウトしてブラウザ localStorage フォールバックへ落とす
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeoutId = setTimeout(() => {
+        // タイムアウト時は Promise キャッシュを破棄して次回再試行できるようにする
+        bridgePromise = null
+        resolve(null)
+      }, 1500)
+    })
+    const result = await Promise.race([bridgePromise, timeoutPromise])
+    if (timeoutId !== null) clearTimeout(timeoutId)
+    return result
   } catch {
-    // bridge 未ブリッジ環境（シミュレーター等）では null を返してフォールバックへ
+    // bridge 初期化が reject された場合もフォールバックへ
     bridgePromise = null
     return null
   }
@@ -49,8 +61,8 @@ export async function loadStationName(): Promise<string | null> {
       return raw === '' ? null : raw
     }
     // dev フォールバック: ブラウザ localStorage を使う（シミュレーター / vite dev / preview 環境）
-    const raw = localStorage.getItem(STATION_KEY)
-    return raw === '' || raw === null ? null : raw
+    // getItem は未存在キーで null、手動で "" を書いた場合も「自動モード」扱いとする
+    return localStorage.getItem(STATION_KEY) || null
   } catch {
     return null
   }
