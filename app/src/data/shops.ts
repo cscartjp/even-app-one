@@ -10,6 +10,8 @@
  * TODO: 祝日カレンダー（train の isWeekend と共通化）／日付をまたぐ深夜営業
  */
 
+import { ohoStation } from './stations'
+
 /** 緯度・経度 */
 export interface GeoPoint {
   readonly lat: number
@@ -55,12 +57,15 @@ const r = (
 })
 
 /**
- * グルメの距離計算で、GPS が取れなかったときに使う既定の原点（福岡天神駅）。
- * （電車は origin を使わず時刻表データ自体が大保駅なので、別途デフォルト大保駅）
- * 座標はサンプル。好みの場所に書き換えてください。
+ * GPS が取れなかったときに使う既定の原点（大保駅）。
+ * グルメの距離計算と、電車画面の最寄り駅判定の両方で使う。
+ * 座標の定義元は stations.ts に一本化（同期漏れ防止）。
  */
-export const defaultOrigin: GeoPoint = { lat: 33.5902, lon: 130.3989 }
-export const defaultOriginLabel = '福岡天神駅'
+export const defaultOrigin: GeoPoint = {
+  lat: ohoStation.lat,
+  lon: ohoStation.lon,
+}
+export const defaultOriginLabel = '大保駅'
 
 // ─── サンプル：西鉄天神大牟田線 大保駅まわり ───
 // 実在店の正確な営業時間・座標ではありません。自分のリストに置き換えてください。
