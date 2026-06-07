@@ -55,12 +55,14 @@ const r = (
 })
 
 /**
- * グルメの距離計算で、GPS が取れなかったときに使う既定の原点（福岡天神駅）。
- * （電車は origin を使わず時刻表データ自体が大保駅なので、別途デフォルト大保駅）
- * 座標はサンプル。好みの場所に書き換えてください。
+ * GPS が取れなかったときに使う既定の原点（大保駅）。
+ * グルメの距離計算と、電車画面の最寄り駅判定（stations.ts）の両方で使う。
  */
-export const defaultOrigin: GeoPoint = { lat: 33.5902, lon: 130.3989 }
-export const defaultOriginLabel = '福岡天神駅'
+export const defaultOrigin: GeoPoint = {
+  lat: 33.41204059715683,
+  lon: 130.55815821600282,
+}
+export const defaultOriginLabel = '大保駅'
 
 // ─── サンプル：西鉄天神大牟田線 大保駅まわり ───
 // 実在店の正確な営業時間・座標ではありません。自分のリストに置き換えてください。
