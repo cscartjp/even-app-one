@@ -55,6 +55,14 @@
 | [even-toolkit 日本語要約](community/even-toolkit/README.md) | G2 専用デザインシステム + コンポーネントライブラリ（MIT）の公式 docs 要約（全 6 ページ）。**`app/` はこの toolkit の scaffold で生成** |
 | [日本語コミュニティ記事まとめ](community/jp-articles/README.md) | Zenn の日本語記事 3 本の要約（全 3 ページ）。入門手順・SDK 実測値・実機の罠と審査詳解 |
 
+### プロジェクトデータ（Data）
+
+公式ドキュメントの要約ではなく、このリポジトリのアプリ（Hisho）用の元データ置き場。
+
+| ページ | 内容 |
+|---|---|
+| [グルメ店データ: 福岡市「行ってみたい」](data/gourmet/README.md) | Google マップ保存リスト由来の 78 店舗・営業時間付き 50 件（JSON/CSV + `shops.ts` 用スニペット） |
+
 ## 原文
 
 - 公式ドキュメント: https://hub.evenrealities.com/docs/getting-started/overview
