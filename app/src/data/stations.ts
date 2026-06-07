@@ -21,6 +21,8 @@ export interface Station {
   readonly lon: number
   /** この駅で表示できる方面（1〜2件・空配列は型で禁止） */
   readonly directions: readonly [DirectionSchedule, ...DirectionSchedule[]]
+  /** 種別凡例（電車画面末尾に表示） */
+  readonly legend: string
 }
 
 /** 西鉄福岡(天神)駅。GPS テスト中は既定 origin（shops.ts）もこの座標を参照する */
@@ -29,6 +31,7 @@ export const tenjinStation: Station = {
   lat: 33.58912807066921,
   lon: 130.39993557532804,
   directions: [tenjinDown],
+  legend: '◆特急 ★急行 無印=普通',
 }
 
 /** 大保駅。GPS 不可時の既定 origin（shops.ts）もこの座標を参照する */
@@ -37,6 +40,7 @@ export const ohoStation: Station = {
   lat: 33.41204059715683,
   lon: 130.55815821600282,
   directions: [ohoUp, ohoDown],
+  legend: '★=筑紫から急行 無印=普通',
 }
 
 export const stations: readonly Station[] = [
@@ -46,12 +50,14 @@ export const stations: readonly Station[] = [
     lat: 33.39631904284256,
     lon: 130.55353480813636,
     directions: [ogoriUp],
+    legend: '◆特急 ★急行 無印=普通',
   },
   {
     name: '花畑',
     lat: 33.30613097245831,
     lon: 130.51519225415385,
     directions: [hanabatakeUp],
+    legend: '◆特急 ★急行 無印=普通',
   },
   tenjinStation,
 ]
