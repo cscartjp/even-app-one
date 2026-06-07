@@ -1,4 +1,4 @@
-import { createScreenMapper, getHomeTiles } from 'even-toolkit/glass-router'
+import { createScreenMapper } from 'even-toolkit/glass-router'
 import { useFlashPhase } from 'even-toolkit/useFlashPhase'
 import { useGlasses } from 'even-toolkit/useGlasses'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -24,8 +24,6 @@ const deriveScreen = createScreenMapper(
   ],
   'home',
 )
-
-const homeTiles = getHomeTiles(appSplash)
 
 /**
  * グラス表示のブリッジ。React Router の現在地から画面を導出し、
@@ -67,15 +65,43 @@ export function AppGlasses() {
   // タイムアウトしやすく、コミュニティでは watchPosition の動作実績あり
   // （docs/community/jp-articles/02-bigdra-sdk-features.md）。
   // タイムアウトは設けず、フィックスが来るたびに原点を更新する。
+  // 【GPS 診断・一時コード】Hub Beta 経由でも GPS 失敗が続くため、失敗箇所を
+  // グルメ画面ヘッダーの originLabel に出して切り分ける。原因判明後は
+  // サイレントフォールバック（既定駅のまま）に戻すこと。
+  // 表示: [API無]=geolocation 未ブリッジ / [待機:g|d|p]=コールバック未着(+権限状態) /
+  //       [E1|E2|E3:g|d|p]=拒否|測位不能|タイムアウト / 「現在地」=成功
   useEffect(() => {
-    if (!('geolocation' in navigator)) return
+    let gotFix = false
+    let perm = ''
+    let err = ''
+    const renderNote = () => {
+      if (gotFix) return
+      setOriginLabel(
+        `${defaultOriginLabel}[${[err || '待機', perm].filter(Boolean).join(':')}]`,
+      )
+    }
+    if (!('geolocation' in navigator)) {
+      setOriginLabel(`${defaultOriginLabel}[API無]`)
+      return
+    }
+    renderNote()
+    // 権限状態も証拠として取る（permissions API 未対応の WebView では無視）
+    navigator.permissions
+      ?.query({ name: 'geolocation' })
+      .then((s) => {
+        perm = s.state[0] ?? ''
+        renderNote()
+      })
+      .catch(() => {})
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
+        gotFix = true
         setOrigin({ lat: pos.coords.latitude, lon: pos.coords.longitude })
         setOriginLabel('現在地')
       },
-      () => {
-        // 取得失敗・拒否・非セキュアコンテキスト → 既定駅のまま
+      (e) => {
+        err = `E${e.code}`
+        renderNote()
       },
       { maximumAge: 60000 },
     )
@@ -125,8 +151,9 @@ export function AppGlasses() {
     deriveScreen,
     appName: 'HISHO',
     splash: appSplash,
+    // ホームは常駐ロゴ画像なしの全面テキスト（ロゴタイルがあるとテキスト領域が
+    // タイル下端からになり、グルメ情報以降が 288px に収まらない）
     getPageMode: (screen) => (screen === 'home' ? 'home' : 'text'),
-    homeImageTiles: homeTiles,
   })
 
   return null

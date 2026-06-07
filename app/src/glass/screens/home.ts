@@ -3,7 +3,7 @@ import type { GlassScreen } from 'even-toolkit/glass-screen-router'
 import { line } from 'even-toolkit/types'
 import { nearestStation } from '../../data/stations'
 import { getNextDepartures } from '../../data/timetable'
-import { type AppActions, type AppSnapshot, statusBarLine } from '../shared'
+import { type AppActions, type AppSnapshot, statusBarLines } from '../shared'
 
 /** ホーム画面のメニュー項目インデックス */
 const MENU_TRAIN = 0
@@ -43,12 +43,10 @@ export const homeScreen: GlassScreen<AppSnapshot, AppActions> = {
 
     return {
       lines: [
-        statusBarLine(now),
-        // 行1: 最寄駅
+        ...statusBarLines(now),
+        // 最寄駅（罫線が 1 行使うため、直後の空行は置かない）
         line(`最寄駅: ${station.name}駅`, 'meta'),
-        // 行2: 空行
-        line(''),
-        // 行3: 電車情報（選択中なら inverted）
+        // 電車情報（選択中なら inverted）
         line('電車情報', 'normal', isTrain),
         // 行4〜5: 次発（方面数ぶん）
         ...trainRows,
