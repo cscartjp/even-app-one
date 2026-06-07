@@ -47,22 +47,6 @@ function formatLeft(dep: Departure): string {
 }
 
 /**
- * 右カラム用フォーマット。
- * モックに合わせ「HH:MM 行き先 分後」（1スペース区切り）。
- * 種別マークは分後テキストの後ろ（左カラムと同じ配置）。
- */
-function formatRight(dep: Departure): string {
-  const mark = dep.ltdExpress ? '◆' : dep.express ? '★' : ''
-  const minStr = dep.minutesLeft === 0 ? 'まもなく' : `${dep.minutesLeft}分後`
-  if (dep.dest) {
-    return mark
-      ? `${dep.time} ${dep.dest} ${minStr} ${mark}`
-      : `${dep.time} ${dep.dest} ${minStr}`
-  }
-  return mark ? `${dep.time} ${minStr} ${mark}` : `${dep.time}  ${minStr}`
-}
-
-/**
  * 2カラム罫線を生成する。
  * LEFT_COL_TARGET_PX は DASH_PX の倍数なので leftDashes は整数（floor 不要）。
  * ┼ x 位置 = leftDashes × DASH_PX = LEFT_COL_TARGET_PX （正確に一致）。
@@ -70,7 +54,7 @@ function formatRight(dep: Departure): string {
 function buildSeparator(rightDeps: Departure[]): string {
   const leftDashes = LEFT_COL_TARGET_PX / DASH_PX // 整数（160/20=8）
   const maxRightPx = Math.max(
-    ...rightDeps.map((d) => getTextWidth(` ${formatRight(d)}`)),
+    ...rightDeps.map((d) => getTextWidth(` ${formatDeparture(d)}`)),
     0,
   )
   const rightDashes = Math.max(1, Math.ceil(maxRightPx / DASH_PX))
@@ -97,7 +81,8 @@ export const trainScreen: GlassScreen<AppSnapshot, AppActions> = {
 
       const dataLines = Array.from({ length: rowCount }, (_, i) => {
         const leftText = i < upDeps.length ? formatLeft(upDeps[i]) : ''
-        const rightText = i < downDeps.length ? formatRight(downDeps[i]) : ''
+        const rightText =
+          i < downDeps.length ? formatDeparture(downDeps[i]) : ''
         if (!leftText && !rightText) return line('')
         if (!leftText) return line(`${padLeft('')}│ ${rightText}`)
         if (!rightText) return line(padLeft(leftText))
