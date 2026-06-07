@@ -9,8 +9,9 @@
 
 export interface DepartureEntry {
   readonly m: number
-  readonly express?: true // ★ 筑紫より急行（天神方面のみ）
-  readonly dest?: string // 行き先短縮名（大牟田方面のみ）
+  readonly express?: true // ★ 急行（大保では「筑紫より急行」）
+  readonly ltdExpress?: true // ◆ 特急
+  readonly dest?: string // 行き先短縮名
 }
 
 export type Timetable = Readonly<Record<number, readonly DepartureEntry[]>>
@@ -18,7 +19,10 @@ export type Timetable = Readonly<Record<number, readonly DepartureEntry[]>>
 export interface DirectionSchedule {
   readonly label: string
   readonly weekday: Timetable
+  /** 土日祝ダイヤ（saturday を持つ駅では日祝のみ） */
   readonly weekend: Timetable
+  /** 土曜が日祝と異なる駅のみ指定。省略時は weekend を共用 */
+  readonly saturday?: Timetable
 }
 
 const d = (m: number): DepartureEntry => ({ m })
