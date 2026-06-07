@@ -58,12 +58,18 @@ interface State {
 /** 状態を一意なIDにする。区切り文字衝突を避けるため JSON 配列で表現する */
 const id = (s: State) => JSON.stringify([s.path, s.hi, s.genre])
 
-/** 状態を実コードの toDisplayData に通して表示行を得る */
+/** 状態を実コードの toDisplayData に通して表示行を得る。
+ *  先頭行が statusBarLine（"HISHO" から始まる行）であれば除去する。
+ *  モック側は statusbar を CSS div で描画するため、lines には含めない。 */
 function render(s: State): DisplayLine[] {
-  return toDisplayData(snapshot(s.genre), {
+  const lines = toDisplayData(snapshot(s.genre), {
     screen: deriveScreen(s.path),
     highlightedIndex: s.hi,
   }).lines
+  if (lines.length > 0 && lines[0].text.startsWith('HISHO')) {
+    return lines.slice(1)
+  }
+  return lines
 }
 
 const ACTIONS: Record<string, GlassAction> = {
@@ -185,7 +191,20 @@ function buildHtml(json: string): string {
     box-shadow:0 0 0 6px #0c1a0f, 0 18px 50px rgba(0,0,0,.6), inset 0 0 60px rgba(40,160,60,.06);
     padding:8px 14px;
     font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+    display:flex; flex-direction:column;
   }
+  /* 常時表示ステータスバー（macOS メニューバー風・1行ぶん = 28.8px） */
+  .statusbar{
+    position:relative; z-index:1; flex:none;
+    height:28.8px; line-height:28.8px;
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid #1f5a2a;
+    font-size:15px; white-space:pre; overflow:hidden;
+  }
+  .statusbar .app{ color:var(--g-hot); font-weight:700; letter-spacing:.14em;
+    text-shadow:0 0 8px rgba(120,250,120,.5); }
+  .statusbar .clock{ color:var(--g-dim); letter-spacing:.04em; }
+  #screen{ flex:1; min-height:0; position:relative; }
   /* 走査線っぽい質感 */
   .glass::after{ content:""; position:absolute; inset:0; pointer-events:none;
     background:repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 3px, rgba(0,0,0,.10) 3px 4px); }
@@ -227,7 +246,13 @@ function buildHtml(json: string): string {
 
   <div class="screen-name" id="screenName"></div>
   <div class="scale"><div class="scaler">
-    <div class="glass"><div id="screen"></div></div>
+    <div class="glass">
+      <div class="statusbar">
+        <span class="app">HISHO</span>
+        <span class="clock" id="clock"></span>
+      </div>
+      <div id="screen"></div>
+    </div>
   </div></div>
 
   <div class="legend">テンプルのタッチパッド操作を再現： 上/下スワイプ＝選択移動、タップ＝決定、ダブルタップ＝戻る</div>
@@ -279,7 +304,7 @@ function buildHtml(json: string): string {
     screen.innerHTML = '';
     const rows = document.createElement('div');
     rows.className = 'rows';
-    for(let i=0;i<10;i++){
+    for(let i=0;i<9;i++){
       const l = node.lines[i];
       const div = document.createElement('div');
       div.className = 'row ' + (l ? rowClass(l) : '');
@@ -305,6 +330,19 @@ function buildHtml(json: string): string {
     else if(e.key==='Backspace'){ go('back'); e.preventDefault(); }
   });
   document.getElementById('genAt').textContent = new Date(DATA.generatedAt).toLocaleString('ja-JP');
+
+  // 常時表示バーの時計（macOS メニューバー風: 2026年6月7日（日） 16:03）
+  function updateClock(){
+    const d = new Date();
+    const w = ['日','月','火','水','木','金','土'][d.getDay()];
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    document.getElementById('clock').textContent =
+      d.getFullYear()+'年'+(d.getMonth()+1)+'月'+d.getDate()+'日（'+w+'） '+hh+':'+mm;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
   render();
 </script>
 </body>
