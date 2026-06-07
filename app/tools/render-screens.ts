@@ -21,6 +21,7 @@ const GLASS_ROUTES = {
   train: '/train',
   gourmet: '/gourmet',
   gourmetNearby: '/gourmet/nearby',
+  station: '/station',
 } as const
 
 const deriveScreen = createScreenMapper(
@@ -29,6 +30,7 @@ const deriveScreen = createScreenMapper(
     { pattern: GLASS_ROUTES.train, screen: 'train' },
     { pattern: GLASS_ROUTES.gourmetNearby, screen: 'gourmetNearby' },
     { pattern: GLASS_ROUTES.gourmet, screen: 'gourmet' },
+    { pattern: GLASS_ROUTES.station, screen: 'station' },
   ],
   'home',
 )
@@ -39,13 +41,17 @@ const menuItems = [
 ]
 
 /** プレビュー用の AppSnapshot を組み立てる（原点は既定値で固定） */
-function snapshot(selectedGenre: string | null): AppSnapshot {
+function snapshot(
+  selectedGenre: string | null,
+  selectedStation: string | null,
+): AppSnapshot {
   return {
     menuItems,
     flashPhase: false,
     origin: defaultOrigin,
     originLabel: defaultOriginLabel,
     selectedGenre,
+    selectedStation,
   }
 }
 
@@ -53,16 +59,18 @@ interface State {
   path: string
   hi: number
   genre: string | null
+  /** 手動選択駅名。null は「自動」モード */
+  station: string | null
 }
 
 /** 状態を一意なIDにする。区切り文字衝突を避けるため JSON 配列で表現する */
-const id = (s: State) => JSON.stringify([s.path, s.hi, s.genre])
+const id = (s: State) => JSON.stringify([s.path, s.hi, s.genre, s.station])
 
 /** 状態を実コードの toDisplayData に通して表示行を得る。
  *  先頭行が statusBarLine（"HISHO" から始まる行）であれば除去する。
  *  モック側は statusbar を CSS div で描画するため、lines には含めない。 */
 function render(s: State): DisplayLine[] {
-  const lines = toDisplayData(snapshot(s.genre), {
+  const lines = toDisplayData(snapshot(s.genre, s.station), {
     screen: deriveScreen(s.path),
     highlightedIndex: s.hi,
   }).lines
@@ -83,6 +91,7 @@ const ACTIONS: Record<string, GlassAction> = {
 function apply(s: State, action: GlassAction): State {
   let path = s.path
   let genre = s.genre
+  let station = s.station
   const ctx = {
     navigate: (p: string) => {
       path = p
@@ -90,9 +99,12 @@ function apply(s: State, action: GlassAction): State {
     setGenre: (g: string | null) => {
       genre = g
     },
+    setStation: (name: string | null) => {
+      station = name
+    },
   }
   const nav = { screen: deriveScreen(s.path), highlightedIndex: s.hi }
-  const newNav = onGlassAction(action, nav, snapshot(s.genre), ctx)
+  const newNav = onGlassAction(action, nav, snapshot(s.genre, s.station), ctx)
 
   const newScreen = deriveScreen(path)
   // useGlasses: 画面が変わったら highlightedIndex は 0 にリセットされる
@@ -100,7 +112,7 @@ function apply(s: State, action: GlassAction): State {
   // genre は近い順画面でのみ意味を持つ（状態爆発を防ぐため正規化）
   if (newScreen !== 'gourmetNearby') genre = null
   if (hi < 0) hi = 0
-  return { path, hi, genre }
+  return { path, hi, genre, station }
 }
 
 interface Node {
@@ -111,7 +123,7 @@ interface Node {
 }
 
 // 到達可能状態を BFS で列挙
-const start: State = { path: '/', hi: 0, genre: null }
+const start: State = { path: '/', hi: 0, genre: null, station: null }
 const nodes = new Map<string, Node>()
 const seen = new Set<string>([id(start)])
 const queue: State[] = [start]
@@ -273,7 +285,7 @@ function buildHtml(json: string): string {
 <script id="data" type="application/json">${json}</script>
 <script>
   const DATA = JSON.parse(document.getElementById('data').textContent);
-  const NAMES = { splash:'起動画面', home:'ホーム', train:'電車（時刻表）', gourmet:'グルメ（ジャンル選択）', gourmetNearby:'グルメ（近い順）' };
+  const NAMES = { splash:'起動画面', home:'ホーム', train:'電車（時刻表）', gourmet:'グルメ（ジャンル選択）', gourmetNearby:'グルメ（近い順）', station:'駅選択' };
   const PREFIX = '  ';
   let cur = DATA.startId;
 
