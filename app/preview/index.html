@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hisho — 画面プレビュー (Even G2)</title>
+<style>
+  :root{ --g0:#04140a; --g-dim:#2f7d3a; --g:#7dfc7a; --g-hot:#c9ffc4; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:#0b0f0c; color:#cfe9cf;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap{ max-width:760px; margin:0 auto; padding:24px 16px 60px; }
+  h1{ font-size:18px; font-weight:600; margin:0 0 2px; }
+  .sub{ color:#7f9a7f; font-size:12px; margin:0 0 20px; }
+  .screen-name{ text-align:center; color:#9fe39f; font-size:13px; letter-spacing:.08em; margin:0 0 8px; }
+
+  /* G2 ディスプレイ: 576×288, 4bit 緑階調を模した黒地に緑 */
+  .glass{
+    width:576px; height:288px; margin:0 auto; position:relative;
+    background:radial-gradient(120% 140% at 50% 0%, #06180c 0%, #031007 70%, #020a05 100%);
+    border:1px solid #173d1f; border-radius:14px; overflow:hidden;
+    box-shadow:0 0 0 6px #0c1a0f, 0 18px 50px rgba(0,0,0,.6), inset 0 0 60px rgba(40,160,60,.06);
+    padding:8px 14px;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  }
+  /* 走査線っぽい質感 */
+  .glass::after{ content:""; position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0) 0 3px, rgba(0,0,0,.10) 3px 4px); }
+  .rows{ position:relative; z-index:1; height:100%; display:flex; flex-direction:column; }
+  .row{ height:28.8px; line-height:28.8px; white-space:pre; font-size:18px;
+    color:var(--g); text-shadow:0 0 6px rgba(90,230,90,.45); overflow:hidden; }
+  .row.dim{ color:var(--g-dim); text-shadow:none; }
+  .row.sep{ color:#1f5a2a; text-shadow:none; }
+  .row.hot{ color:#04140a; background:var(--g); border-radius:4px;
+    text-shadow:none; font-weight:600; padding:0 4px; margin:0 -4px; }
+
+  /* 起動（スプラッシュ）画面 */
+  .splash{ position:relative; z-index:1; height:100%; display:flex;
+    flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .splash .logo{ font-size:54px; font-weight:700; letter-spacing:.12em;
+    color:var(--g-hot); text-shadow:0 0 16px rgba(120,250,120,.6); }
+  .splash .tag{ font-size:16px; color:var(--g-dim); letter-spacing:.2em; }
+  .splash .hint{ position:absolute; bottom:8px; font-size:13px; color:#2f7d3a;
+    letter-spacing:.1em; }
+
+  .scale{ display:flex; justify-content:center; }
+  .scaler{ transform:scale(1.18); transform-origin:top center; margin-bottom:70px; }
+
+  .legend{ text-align:center; color:#6f8a6f; font-size:11px; margin:6px 0 20px; }
+  .controls{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  button{ background:#11331a; color:#bdf0bd; border:1px solid #2a6b36; border-radius:10px;
+    padding:10px 16px; font-size:14px; cursor:pointer; min-width:128px; }
+  button:hover{ background:#16431f; }
+  button:active{ transform:translateY(1px); }
+  button small{ display:block; color:#79a979; font-size:10px; margin-top:2px; font-weight:400; }
+  .meta{ text-align:center; color:#5f7a5f; font-size:11px; margin-top:22px; }
+  kbd{ background:#16431f; border:1px solid #2a6b36; border-radius:4px; padding:1px 6px; font-size:11px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hisho — 画面プレビュー</h1>
+  <p class="sub">Even G2 ディスプレイ（576×288・4bit 緑階調）の見え方を再現。アプリの実コードから自動生成。</p>
+
+  <div class="screen-name" id="screenName"></div>
+  <div class="scale"><div class="scaler">
+    <div class="glass"><div id="screen"></div></div>
+  </div></div>
+
+  <div class="legend">テンプルのタッチパッド操作を再現： 上/下スワイプ＝選択移動、タップ＝決定、ダブルタップ＝戻る</div>
+
+  <div class="controls">
+    <button id="b-up">⬆ 上スワイプ<small>選択を上へ</small></button>
+    <button id="b-down">⬇ 下スワイプ<small>選択を下へ</small></button>
+    <button id="b-tap">● タップ<small>決定 / 開く</small></button>
+    <button id="b-back">⟲ ダブルタップ<small>戻る</small></button>
+  </div>
+
+  <p class="meta">
+    キーボード: <kbd>↑</kbd><kbd>↓</kbd> スワイプ ・ <kbd>Enter</kbd> タップ ・ <kbd>Backspace</kbd> 戻る<br>
+    <span id="genAt"></span> 時点の生成（電車の「あと◯分」は生成時刻基準）。起動画面→ホーム→電車／グルメと進めます。
+  </p>
+</div>
+
+<script id="data" type="application/json">{"startId":"__splash__","generatedAt":"2026-06-06T08:58:24.454Z","nodes":{"[\"/\",0,null]":{"id":"[\"/\",0,null]","screen":"home","lines":[{"text":"電車情報","inverted":true,"style":"normal"},{"text":"グルメ情報","inverted":false,"style":"normal"}],"trans":{"tap":"[\"/train\",0,null]","up":"[\"/\",0,null]","down":"[\"/\",1,null]","back":"[\"/\",0,null]"}},"[\"/train\",0,null]":{"id":"[\"/train\",0,null]","screen":"train","lines":[{"text":"大保 → 福岡(天神)方面","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"09:04★ 6分後","inverted":false,"style":"normal"},{"text":"09:11  13分後","inverted":false,"style":"normal"},{"text":"09:34★ 36分後","inverted":false,"style":"normal"},{"text":"09:41  43分後","inverted":false,"style":"normal"},{"text":"10:04★ 66分後","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"normal"},{"text":"↕方面切替","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/train\",0,null]","up":"[\"/train\",1,null]","down":"[\"/train\",1,null]","back":"[\"/\",0,null]"}},"[\"/\",1,null]":{"id":"[\"/\",1,null]","screen":"home","lines":[{"text":"電車情報","inverted":false,"style":"normal"},{"text":"グルメ情報","inverted":true,"style":"normal"}],"trans":{"tap":"[\"/gourmet\",0,null]","up":"[\"/\",0,null]","down":"[\"/\",1,null]","back":"[\"/\",1,null]"}},"[\"/train\",1,null]":{"id":"[\"/train\",1,null]","screen":"train","lines":[{"text":"大保 → 大牟田方面","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"09:12 大善寺 14分後","inverted":false,"style":"normal"},{"text":"09:18 小郡 20分後","inverted":false,"style":"normal"},{"text":"09:42 大善寺 44分後","inverted":false,"style":"normal"},{"text":"09:48 小郡 50分後","inverted":false,"style":"normal"},{"text":"10:12 大善寺 74分後","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"normal"},{"text":"↕方面切替","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/train\",1,null]","up":"[\"/train\",0,null]","down":"[\"/train\",0,null]","back":"[\"/\",0,null]"}},"[\"/gourmet\",0,null]":{"id":"[\"/gourmet\",0,null]","screen":"gourmet","lines":[{"text":"グルメ (福岡天神駅)","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"ラーメン","inverted":true,"style":"normal"},{"text":"うどん","inverted":false,"style":"normal"},{"text":"定食","inverted":false,"style":"normal"},{"text":"カフェ","inverted":false,"style":"normal"},{"text":"居酒屋","inverted":false,"style":"normal"},{"text":"ベーカリー","inverted":false,"style":"normal"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"ラーメン\"]","up":"[\"/gourmet\",0,null]","down":"[\"/gourmet\",1,null]","back":"[\"/\",0,null]"}},"[\"/gourmet/nearby\",0,\"ラーメン\"]":{"id":"[\"/gourmet/nearby\",0,\"ラーメン\"]","screen":"gourmetNearby","lines":[{"text":"ラーメン","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"○ 天神らーめん  110m","inverted":true,"style":"normal"},{"text":"○ 大保らーめん  12.9km","inverted":false,"style":"normal"},{"text":"ラーメン・天神  11:00開店","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"ラーメン\"]","up":"[\"/gourmet/nearby\",0,\"ラーメン\"]","down":"[\"/gourmet/nearby\",1,\"ラーメン\"]","back":"[\"/gourmet\",0,null]"}},"[\"/gourmet\",1,null]":{"id":"[\"/gourmet\",1,null]","screen":"gourmet","lines":[{"text":"グルメ (福岡天神駅)","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"ラーメン","inverted":false,"style":"normal"},{"text":"うどん","inverted":true,"style":"normal"},{"text":"定食","inverted":false,"style":"normal"},{"text":"カフェ","inverted":false,"style":"normal"},{"text":"居酒屋","inverted":false,"style":"normal"},{"text":"ベーカリー","inverted":false,"style":"normal"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"うどん\"]","up":"[\"/gourmet\",0,null]","down":"[\"/gourmet\",2,null]","back":"[\"/\",0,null]"}},"[\"/gourmet/nearby\",1,\"ラーメン\"]":{"id":"[\"/gourmet/nearby\",1,\"ラーメン\"]","screen":"gourmetNearby","lines":[{"text":"ラーメン","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"○ 天神らーめん  110m","inverted":false,"style":"normal"},{"text":"○ 大保らーめん  12.9km","inverted":true,"style":"normal"},{"text":"ラーメン・大保  11:00開店","inverted":false,"style":"meta"},{"text":"日曜は通し営業","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",1,\"ラーメン\"]","up":"[\"/gourmet/nearby\",0,\"ラーメン\"]","down":"[\"/gourmet/nearby\",1,\"ラーメン\"]","back":"[\"/gourmet\",0,null]"}},"[\"/gourmet/nearby\",0,\"うどん\"]":{"id":"[\"/gourmet/nearby\",0,\"うどん\"]","screen":"gourmetNearby","lines":[{"text":"うどん","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"○ うどん 筑紫  15.3km","inverted":true,"style":"normal"},{"text":"うどん・筑紫  10:30開店","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"うどん\"]","up":"[\"/gourmet/nearby\",0,\"うどん\"]","down":"[\"/gourmet/nearby\",0,\"うどん\"]","back":"[\"/gourmet\",0,null]"}},"[\"/gourmet\",2,null]":{"id":"[\"/gourmet\",2,null]","screen":"gourmet","lines":[{"text":"グルメ (福岡天神駅)","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"ラーメン","inverted":false,"style":"normal"},{"text":"うどん","inverted":false,"style":"normal"},{"text":"定食","inverted":true,"style":"normal"},{"text":"カフェ","inverted":false,"style":"normal"},{"text":"居酒屋","inverted":false,"style":"normal"},{"text":"ベーカリー","inverted":false,"style":"normal"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"定食\"]","up":"[\"/gourmet\",1,null]","down":"[\"/gourmet\",3,null]","back":"[\"/\",0,null]"}},"[\"/gourmet/nearby\",0,\"定食\"]":{"id":"[\"/gourmet/nearby\",0,\"定食\"]","screen":"gourmetNearby","lines":[{"text":"定食","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"○ 大保食堂  13.0km","inverted":true,"style":"normal"},{"text":"○ 定食 こまつ  26.0km","inverted":false,"style":"normal"},{"text":"定食・大保  11:00開店","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"定食\"]","up":"[\"/gourmet/nearby\",0,\"定食\"]","down":"[\"/gourmet/nearby\",1,\"定食\"]","back":"[\"/gourmet\",0,null]"}},"[\"/gourmet\",3,null]":{"id":"[\"/gourmet\",3,null]","screen":"gourmet","lines":[{"text":"グルメ (福岡天神駅)","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"ラーメン","inverted":false,"style":"normal"},{"text":"うどん","inverted":false,"style":"normal"},{"text":"定食","inverted":false,"style":"normal"},{"text":"カフェ","inverted":true,"style":"normal"},{"text":"居酒屋","inverted":false,"style":"normal"},{"text":"ベーカリー","inverted":false,"style":"normal"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"カフェ\"]","up":"[\"/gourmet\",2,null]","down":"[\"/gourmet\",4,null]","back":"[\"/\",0,null]"}},"[\"/gourmet/nearby\",1,\"定食\"]":{"id":"[\"/gourmet/nearby\",1,\"定食\"]","screen":"gourmetNearby","lines":[{"text":"定食","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"○ 大保食堂  13.0km","inverted":false,"style":"normal"},{"text":"○ 定食 こまつ  26.0km","inverted":true,"style":"normal"},{"text":"定食・小郡  定休","inverted":false,"style":"meta"},{"text":"土日定休","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",1,\"定食\"]","up":"[\"/gourmet/nearby\",0,\"定食\"]","down":"[\"/gourmet/nearby\",1,\"定食\"]","back":"[\"/gourmet\",0,null]"}},"[\"/gourmet/nearby\",0,\"カフェ\"]":{"id":"[\"/gourmet/nearby\",0,\"カフェ\"]","screen":"gourmetNearby","lines":[{"text":"カフェ","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"● 天神カフェ  150m","inverted":true,"style":"normal"},{"text":"○ カフェ 桜台  14.1km","inverted":false,"style":"normal"},{"text":"カフェ・天神  営業中 〜21:00","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"カフェ\"]","up":"[\"/gourmet/nearby\",0,\"カフェ\"]","down":"[\"/gourmet/nearby\",1,\"カフェ\"]","back":"[\"/gourmet\",0,null]"}},"[\"/gourmet\",4,null]":{"id":"[\"/gourmet\",4,null]","screen":"gourmet","lines":[{"text":"グルメ (福岡天神駅)","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"ラーメン","inverted":false,"style":"normal"},{"text":"うどん","inverted":false,"style":"normal"},{"text":"定食","inverted":false,"style":"normal"},{"text":"カフェ","inverted":false,"style":"normal"},{"text":"居酒屋","inverted":true,"style":"normal"},{"text":"ベーカリー","inverted":false,"style":"normal"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"居酒屋\"]","up":"[\"/gourmet\",3,null]","down":"[\"/gourmet\",5,null]","back":"[\"/\",0,null]"}},"[\"/gourmet/nearby\",1,\"カフェ\"]":{"id":"[\"/gourmet/nearby\",1,\"カフェ\"]","screen":"gourmetNearby","lines":[{"text":"カフェ","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"● 天神カフェ  150m","inverted":false,"style":"normal"},{"text":"○ カフェ 桜台  14.1km","inverted":true,"style":"normal"},{"text":"カフェ・桜台  9:00開店","inverted":false,"style":"meta"},{"text":"木曜定休（祝日除く）","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",1,\"カフェ\"]","up":"[\"/gourmet/nearby\",0,\"カフェ\"]","down":"[\"/gourmet/nearby\",1,\"カフェ\"]","back":"[\"/gourmet\",0,null]"}},"[\"/gourmet/nearby\",0,\"居酒屋\"]":{"id":"[\"/gourmet/nearby\",0,\"居酒屋\"]","screen":"gourmetNearby","lines":[{"text":"居酒屋","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"○ 居酒屋 大善寺  35.5km","inverted":true,"style":"normal"},{"text":"居酒屋・大善寺  16:00開店","inverted":false,"style":"meta"},{"text":"現金のみ","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"居酒屋\"]","up":"[\"/gourmet/nearby\",0,\"居酒屋\"]","down":"[\"/gourmet/nearby\",0,\"居酒屋\"]","back":"[\"/gourmet\",0,null]"}},"[\"/gourmet\",5,null]":{"id":"[\"/gourmet\",5,null]","screen":"gourmet","lines":[{"text":"グルメ (福岡天神駅)","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"ラーメン","inverted":false,"style":"normal"},{"text":"うどん","inverted":false,"style":"normal"},{"text":"定食","inverted":false,"style":"normal"},{"text":"カフェ","inverted":false,"style":"normal"},{"text":"居酒屋","inverted":false,"style":"normal"},{"text":"ベーカリー","inverted":true,"style":"normal"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"ベーカリー\"]","up":"[\"/gourmet\",4,null]","down":"[\"/gourmet\",5,null]","back":"[\"/\",0,null]"}},"[\"/gourmet/nearby\",0,\"ベーカリー\"]":{"id":"[\"/gourmet/nearby\",0,\"ベーカリー\"]","screen":"gourmetNearby","lines":[{"text":"ベーカリー","inverted":false,"style":"normal"},{"text":"","inverted":false,"style":"separator"},{"text":"● パン工房 二日市  15.1km","inverted":true,"style":"normal"},{"text":"ベーカリー・二日市  営業中 〜19:00","inverted":false,"style":"meta"},{"text":"売り切れ次第終了","inverted":false,"style":"meta"}],"trans":{"tap":"[\"/gourmet/nearby\",0,\"ベーカリー\"]","up":"[\"/gourmet/nearby\",0,\"ベーカリー\"]","down":"[\"/gourmet/nearby\",0,\"ベーカリー\"]","back":"[\"/gourmet\",0,null]"}},"__splash__":{"id":"__splash__","screen":"splash","lines":[],"trans":{"tap":"[\"/\",0,null]","up":"[\"/\",0,null]","down":"[\"/\",0,null]","back":"[\"/\",0,null]"}}}}</script>
+<script>
+  const DATA = JSON.parse(document.getElementById('data').textContent);
+  const NAMES = { splash:'起動画面', home:'ホーム', train:'電車（時刻表）', gourmet:'グルメ（ジャンル選択）', gourmetNearby:'グルメ（近い順）' };
+  const PREFIX = '  ';
+  let cur = DATA.startId;
+
+  function rowClass(l){
+    if(l.style==='separator') return 'sep';
+    if(l.inverted) return 'hot';
+    if(l.style==='meta') return 'dim';
+    return '';
+  }
+  function rowText(l){
+    if(l.style==='separator') return PREFIX + '─'.repeat(27);
+    if(l.inverted) return '▶ ' + l.text;
+    return PREFIX + l.text;
+  }
+  function render(){
+    const node = DATA.nodes[cur];
+    document.getElementById('screenName').textContent = NAMES[node.screen] || node.screen;
+    const screen = document.getElementById('screen');
+    if(node.screen === 'splash'){
+      screen.innerHTML =
+        '<div class="splash">'+
+          '<div class="logo">HISHO</div>'+
+          '<div class="tag">あなたのスマート秘書</div>'+
+          '<div class="hint">▶ タップで開始</div>'+
+        '</div>';
+      return;
+    }
+    screen.innerHTML = '';
+    const rows = document.createElement('div');
+    rows.className = 'rows';
+    for(let i=0;i<10;i++){
+      const l = node.lines[i];
+      const div = document.createElement('div');
+      div.className = 'row ' + (l ? rowClass(l) : '');
+      div.textContent = l ? rowText(l) : '';
+      rows.appendChild(div);
+    }
+    screen.appendChild(rows);
+  }
+  function go(key){
+    const node = DATA.nodes[cur];
+    const next = node.trans[key];
+    if(next && DATA.nodes[next]) cur = next;
+    render();
+  }
+  document.getElementById('b-up').onclick = ()=>go('up');
+  document.getElementById('b-down').onclick = ()=>go('down');
+  document.getElementById('b-tap').onclick = ()=>go('tap');
+  document.getElementById('b-back').onclick = ()=>go('back');
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowUp'){ go('up'); e.preventDefault(); }
+    else if(e.key==='ArrowDown'){ go('down'); e.preventDefault(); }
+    else if(e.key==='Enter'){ go('tap'); e.preventDefault(); }
+    else if(e.key==='Backspace'){ go('back'); e.preventDefault(); }
+  });
+  document.getElementById('genAt').textContent = new Date(DATA.generatedAt).toLocaleString('ja-JP');
+  render();
+</script>
+</body>
+</html>
