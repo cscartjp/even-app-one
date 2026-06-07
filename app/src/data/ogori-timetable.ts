@@ -7,9 +7,7 @@
  * データ上は p3 ヘルパーで区別を残す。
  * 行き先は終点の西鉄福岡(天神)を既定とし、途中止まり（二日市）のみ dest を付ける。
  *
- * saturday には土曜ダイヤを格納。
- * TODO: 日祝ダイヤ受領後に weekend を実データへ差し替える
- * （現在 weekend は土曜ダイヤの仮置き。日祝＝土曜なら saturday を外して統合）。
+ * 土曜と日祝は同一ダイヤのため weekend で統合（大保駅と同じパターン）。
  */
 
 import type {
@@ -51,9 +49,9 @@ const upWeekday: Timetable = {
   23: [d(0), e(10), t(16, '二日市'), t(39, '二日市')],
 }
 
-// ─── 福岡(天神)方面（上り・土曜） ───
+// ─── 福岡(天神)方面（上り・土日祝） ───
 
-const upSaturday: Timetable = {
+const upWeekend: Timetable = {
   5: [d(40)],
   6: [e(13), e(27), d(33), e(46)],
   7: [e(3), d(7), d(17), e(27), d(31), e(47), d(49), e(58)],
@@ -80,9 +78,7 @@ const upSaturday: Timetable = {
 export const ogoriUp: DirectionSchedule = {
   label: '福岡(天神)方面',
   weekday: upWeekday,
-  // TODO: 日祝ダイヤ受領後に差し替え（暫定で土曜を仮置き）
-  weekend: upSaturday,
-  saturday: upSaturday,
+  weekend: upWeekend,
 }
 
 export const ogoriDirections: readonly DirectionSchedule[] = [ogoriUp]
