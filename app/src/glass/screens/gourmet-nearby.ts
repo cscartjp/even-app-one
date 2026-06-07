@@ -10,7 +10,7 @@ import {
   statusMark,
 } from '../../data/gourmet'
 import { type Shop, shops } from '../../data/shops'
-import type { AppActions, AppSnapshot } from '../shared'
+import { type AppActions, type AppSnapshot, statusBarLine } from '../shared'
 
 const MAX_VISIBLE = 3
 
@@ -31,7 +31,11 @@ export const gourmetNearbyScreen: GlassScreen<AppSnapshot, AppActions> = {
 
     if (items.length === 0) {
       return {
-        lines: [...glassHeader(title), line('該当する店がありません', 'meta')],
+        lines: [
+          statusBarLine(now),
+          ...glassHeader(title),
+          line('該当する店がありません', 'meta'),
+        ],
       }
     }
 
@@ -40,6 +44,7 @@ export const gourmetNearbyScreen: GlassScreen<AppSnapshot, AppActions> = {
 
     return {
       lines: [
+        statusBarLine(now),
         ...glassHeader(title),
         ...buildScrollableList({
           items,

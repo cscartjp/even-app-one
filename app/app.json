@@ -2,7 +2,7 @@
   "package_id": "com.frogman.hisho",
   "edition": "202601",
   "name": "Hisho",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "min_app_version": "2.0.0",
   "min_sdk_version": "0.0.10",
   "entrypoint": "index.html",
@@ -12,8 +12,5 @@
       "desc": "現在地から最寄り駅の時刻表と、近くの飲食店を距離順に表示するために位置情報を使用します。"
     }
   ],
-  "supported_languages": [
-    "en",
-    "ja"
-  ]
+  "supported_languages": ["en", "ja"]
 }

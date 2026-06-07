@@ -124,7 +124,7 @@ const downWeekend: Timetable = {
 // ─── エクスポート ───
 
 export const ohoUp: DirectionSchedule = {
-  label: '福岡(天神)方面',
+  label: '天神方面',
   weekday: upWeekday,
   weekend: upWeekend,
 }

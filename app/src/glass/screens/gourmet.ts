@@ -4,7 +4,7 @@ import type { GlassScreen } from 'even-toolkit/glass-screen-router'
 import { glassHeader, line } from 'even-toolkit/types'
 import { listGenres } from '../../data/gourmet'
 import { shops } from '../../data/shops'
-import type { AppActions, AppSnapshot } from '../shared'
+import { type AppActions, type AppSnapshot, statusBarLine } from '../shared'
 
 // ジャンルはデータから自動抽出（店を足せば選択肢も増える）
 const genres = listGenres(shops)
@@ -13,10 +13,17 @@ export const gourmetScreen: GlassScreen<AppSnapshot, AppActions> = {
   display(snapshot, nav) {
     const header = glassHeader(`グルメ (${snapshot.originLabel})`)
     if (genres.length === 0) {
-      return { lines: [...header, line('店が登録されていません', 'meta')] }
+      return {
+        lines: [
+          statusBarLine(),
+          ...header,
+          line('店が登録されていません', 'meta'),
+        ],
+      }
     }
     return {
       lines: [
+        statusBarLine(),
         // 原点が現在地か既定駅かをヘッダーで明示
         ...header,
         ...buildScrollableList({
