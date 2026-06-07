@@ -56,9 +56,13 @@ export interface AppSnapshot {
   originLabel: string
   /** グルメで選択中のジャンル（未選択は null） */
   selectedGenre: string | null
+  /** 手動選択した駅名。null は「自動（GPS > 既定）」モード */
+  selectedStation: string | null
 }
 
 export interface AppActions {
   navigate: (path: string) => void
   setGenre: (genre: string | null) => void
+  /** 手動選択駅を更新し storage に永続化する */
+  setStation: (name: string | null) => void
 }

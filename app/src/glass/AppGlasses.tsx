@@ -4,8 +4,10 @@ import { useGlasses } from 'even-toolkit/useGlasses'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { defaultOrigin, defaultOriginLabel, type GeoPoint } from '../data/shops'
+import { stations } from '../data/stations'
 import { type AppSnapshot, onGlassAction, toDisplayData } from './selectors'
 import type { AppActions } from './shared'
+import { loadStationName, saveStationName } from './storage'
 
 const GLASS_ROUTES = {
   home: '/',
@@ -37,6 +39,19 @@ export function AppGlasses() {
   const [origin, setOrigin] = useState<GeoPoint>(defaultOrigin)
   const [originLabel, setOriginLabel] = useState<string>(defaultOriginLabel)
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null)
+  // 手動選択駅。null は「自動（GPS > 既定）」モード
+  const [selectedStation, setSelectedStation] = useState<string | null>(null)
+
+  // 起動時に保存済み駅名を読み込む（1 回のみ）
+  useEffect(() => {
+    loadStationName().then((name) => {
+      if (name === null) return
+      // stations マスタと突き合わせ、存在しない駅名は null 扱い（古い保存値の保険）
+      const known = stations.some((s) => s.name === name)
+      if (!known) return
+      setSelectedStation(name)
+    })
+  }, [])
 
   // 分単位の時刻カウンタ。分が変わるたびに更新し、全画面のステータスバー時計を再描画させる。
   // minuteTick 自体は snapshot に含めず、state 変化による再レンダーだけを利用する。
@@ -69,7 +84,11 @@ export function AppGlasses() {
   // サイレントフォールバック（既定駅のまま）に戻すこと。
   // 表示: [API無]=geolocation 未ブリッジ / [待機:g|d|p]=コールバック未着(+権限状態) /
   //       [E1|E2|E3:g|d|p]=拒否|測位不能|タイムアウト / 「現在地」=成功
+  // 手動選択駅がある場合: GPS 診断表示より手動駅名を優先（診断は自動モード時のみ意味を持つ）
   useEffect(() => {
+    // 手動選択駅がある場合は GPS watchPosition を張るが origin/originLabel の更新は行わない
+    // （優先順位: 手動 > GPS > 既定 — 手動時は GPS fix が来ても上書きしない）
+    if (selectedStation !== null) return
     let gotFix = false
     let perm = ''
     let err = ''
@@ -107,7 +126,7 @@ export function AppGlasses() {
     return () => {
       navigator.geolocation.clearWatch(watchId)
     }
-  }, [])
+  }, [selectedStation])
 
   const snapshotRef = useMemo(
     () => ({
@@ -116,23 +135,51 @@ export function AppGlasses() {
     [],
   )
 
+  // 優先順位「手動 > GPS > 既定」で origin / originLabel を導出する
+  // 手動選択駅がある場合は固定（GPS fix が来ても上書きしない）
+  const resolvedOrigin: GeoPoint = useMemo(() => {
+    if (selectedStation !== null) {
+      const st = stations.find((s) => s.name === selectedStation)
+      if (st) return { lat: st.lat, lon: st.lon }
+    }
+    return origin
+  }, [selectedStation, origin])
+
+  const resolvedOriginLabel: string =
+    selectedStation !== null ? selectedStation : originLabel
+
   const snapshot: AppSnapshot = {
     menuItems: [
       { label: '電車情報', path: GLASS_ROUTES.train },
       { label: 'グルメ情報', path: GLASS_ROUTES.gourmet },
     ],
     flashPhase,
-    origin,
-    originLabel,
+    origin: resolvedOrigin,
+    originLabel: resolvedOriginLabel,
     selectedGenre,
+    selectedStation,
   }
   snapshotRef.current = snapshot
 
   // biome-ignore lint/style/noNonNullAssertion: 直前のレンダーで必ず代入済み
   const getSnapshot = useCallback(() => snapshotRef.current!, [snapshotRef])
 
-  const ctxRef = useRef<AppActions>({ navigate, setGenre: setSelectedGenre })
-  ctxRef.current = { navigate, setGenre: setSelectedGenre }
+  // setStation: state 更新 + storage への永続化（失敗は黙殺 — storage 設計どおり）
+  const handleSetStation = useCallback((name: string | null) => {
+    setSelectedStation(name)
+    void saveStationName(name)
+  }, [])
+
+  const ctxRef = useRef<AppActions>({
+    navigate,
+    setGenre: setSelectedGenre,
+    setStation: handleSetStation,
+  })
+  ctxRef.current = {
+    navigate,
+    setGenre: setSelectedGenre,
+    setStation: handleSetStation,
+  }
 
   const handleGlassAction = useCallback(
     (
