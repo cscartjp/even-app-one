@@ -6,8 +6,9 @@ import { getNextDepartures } from '../../data/timetable'
 import { type AppActions, type AppSnapshot, statusBarLines } from '../shared'
 
 /** ホーム画面のメニュー項目インデックス */
-const MENU_TRAIN = 0
-const MENU_GOURMET = 1
+const MENU_STATION = 0
+const MENU_TRAIN = 1
+const MENU_GOURMET = 2
 
 /**
  * 次発時刻を "HH:MM" 形式で返す。終電後は翌日始発が「翌HH:MM」で返る
@@ -26,7 +27,15 @@ export const homeScreen: GlassScreen<AppSnapshot, AppActions> = {
   display(snapshot, nav) {
     const now = new Date()
     const station = nearestStation(snapshot.origin)
+    const isStation = nav.highlightedIndex === MENU_STATION
     const isTrain = nav.highlightedIndex === MENU_TRAIN
+    const isGourmet = nav.highlightedIndex === MENU_GOURMET
+
+    // 最寄駅行のラベル（手動固定中はその旨を表示）
+    const stationLabel =
+      snapshot.selectedStation !== null
+        ? `最寄駅: ${station.name}駅(固定)`
+        : `最寄駅: ${station.name}駅`
 
     // 次発時刻を各方面ぶん計算
     const firstDir = station.directions[0]
@@ -44,8 +53,8 @@ export const homeScreen: GlassScreen<AppSnapshot, AppActions> = {
     return {
       lines: [
         ...statusBarLines(now),
-        // 最寄駅（罫線が 1 行使うため、直後の空行は置かない）
-        line(`最寄駅: ${station.name}駅`, 'meta'),
+        // 最寄駅（選択可能項目・選択中は inverted）
+        line(stationLabel, 'normal', isStation),
         // 電車情報（選択中なら inverted）
         line('電車情報', 'normal', isTrain),
         // 行4〜5: 次発（方面数ぶん）
@@ -53,7 +62,7 @@ export const homeScreen: GlassScreen<AppSnapshot, AppActions> = {
         // 空行
         line(''),
         // グルメ情報（選択中なら inverted）
-        line('グルメ情報', 'normal', !isTrain),
+        line('グルメ情報', 'normal', isGourmet),
         // 空行
         line(''),
         // ヒント
@@ -64,7 +73,7 @@ export const homeScreen: GlassScreen<AppSnapshot, AppActions> = {
 
   action(action, nav, _snapshot, ctx) {
     if (action.type === 'HIGHLIGHT_MOVE') {
-      // 電車情報 (0) / グルメ情報 (1) を端でクランプして移動
+      // 最寄駅(0) / 電車情報(1) / グルメ情報(2) を端でクランプして移動
       return {
         ...nav,
         highlightedIndex: moveHighlight(
@@ -75,7 +84,9 @@ export const homeScreen: GlassScreen<AppSnapshot, AppActions> = {
       }
     }
     if (action.type === 'SELECT_HIGHLIGHTED') {
-      if (nav.highlightedIndex === MENU_TRAIN) {
+      if (nav.highlightedIndex === MENU_STATION) {
+        ctx.navigate('/station')
+      } else if (nav.highlightedIndex === MENU_TRAIN) {
         ctx.navigate('/train')
       } else {
         ctx.navigate('/gourmet')
