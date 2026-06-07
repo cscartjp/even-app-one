@@ -7,12 +7,11 @@
  */
 
 import { haversineMeters } from './gourmet'
-import { hanabatakeDirections } from './hanabatake-timetable'
-import { ogoriDirections } from './ogori-timetable'
-import type { DirectionSchedule } from './oho-timetable'
-import { ohoDirections } from './oho-timetable'
+import { hanabatakeUp } from './hanabatake-timetable'
+import { ogoriUp } from './ogori-timetable'
+import { type DirectionSchedule, ohoDown, ohoUp } from './oho-timetable'
 import type { GeoPoint } from './shops'
-import { tenjinDirections } from './tenjin-timetable'
+import { tenjinDown } from './tenjin-timetable'
 
 export interface Station {
   /** ヘッダー表示用の駅名（短め） */
@@ -20,42 +19,46 @@ export interface Station {
   /** 駅の座標 */
   readonly lat: number
   readonly lon: number
-  /** この駅で表示できる方面（1〜2件） */
-  readonly directions: readonly DirectionSchedule[]
+  /** この駅で表示できる方面（1〜2件・空配列は型で禁止） */
+  readonly directions: readonly [DirectionSchedule, ...DirectionSchedule[]]
+}
+
+/** 大保駅。GPS 不可時の既定 origin（shops.ts）もこの座標を参照する */
+export const ohoStation: Station = {
+  name: '大保',
+  lat: 33.41204059715683,
+  lon: 130.55815821600282,
+  directions: [ohoUp, ohoDown],
 }
 
 export const stations: readonly Station[] = [
-  {
-    name: '大保',
-    lat: 33.41204059715683,
-    lon: 130.55815821600282,
-    directions: ohoDirections,
-  },
+  ohoStation,
   {
     name: '西鉄小郡',
     lat: 33.39631904284256,
     lon: 130.55353480813636,
-    directions: ogoriDirections,
+    directions: [ogoriUp],
   },
   {
     name: '花畑',
     lat: 33.30613097245831,
     lon: 130.51519225415385,
-    directions: hanabatakeDirections,
+    directions: [hanabatakeUp],
   },
   {
     name: '西鉄福岡(天神)',
     lat: 33.58912807066921,
     lon: 130.39993557532804,
-    directions: tenjinDirections,
+    directions: [tenjinDown],
   },
 ]
 
 /** 原点（GPS 現在地または既定値）に最も近い駅を返す */
 export function nearestStation(origin: GeoPoint): Station {
-  let best = stations[0]
+  let best: Station = ohoStation
   let bestMeters = haversineMeters(origin, best)
-  for (const station of stations.slice(1)) {
+  for (let i = 1; i < stations.length; i++) {
+    const station = stations[i]
     const meters = haversineMeters(origin, station)
     if (meters < bestMeters) {
       best = station

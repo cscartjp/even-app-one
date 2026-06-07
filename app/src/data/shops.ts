@@ -10,6 +10,8 @@
  * TODO: 祝日カレンダー（train の isWeekend と共通化）／日付をまたぐ深夜営業
  */
 
+import { ohoStation } from './stations'
+
 /** 緯度・経度 */
 export interface GeoPoint {
   readonly lat: number
@@ -56,11 +58,12 @@ const r = (
 
 /**
  * GPS が取れなかったときに使う既定の原点（大保駅）。
- * グルメの距離計算と、電車画面の最寄り駅判定（stations.ts）の両方で使う。
+ * グルメの距離計算と、電車画面の最寄り駅判定の両方で使う。
+ * 座標の定義元は stations.ts に一本化（同期漏れ防止）。
  */
 export const defaultOrigin: GeoPoint = {
-  lat: 33.41204059715683,
-  lon: 130.55815821600282,
+  lat: ohoStation.lat,
+  lon: ohoStation.lon,
 }
 export const defaultOriginLabel = '大保駅'
 
