@@ -27,12 +27,12 @@ async function tryGetBridge(): Promise<Awaited<
       bridgePromise = waitForEvenAppBridge()
     }
     // dev/シミュレーター環境では waitForEvenAppBridge が永久 pending になる場合があるため
-    // 1500ms でタイムアウトしてブラウザ localStorage フォールバックへ落とす
+    // 1500ms でタイムアウトしてブラウザ localStorage フォールバックへ落とす。
+    // タイムアウト時は bridgePromise を保持し続ける（破棄しない）。
+    // bridge が遅れて resolve された場合に以降の呼び出しが即 bridge を使えるようにするため。
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     const timeoutPromise = new Promise<null>((resolve) => {
       timeoutId = setTimeout(() => {
-        // タイムアウト時は Promise キャッシュを破棄して次回再試行できるようにする
-        bridgePromise = null
         resolve(null)
       }, 1500)
     })
@@ -69,24 +69,35 @@ export async function loadStationName(): Promise<string | null> {
 }
 
 /**
+ * 書き込み直列化キュー。連続タップで saveStationName が並列呼び出しされても
+ * 呼び出し順どおりに書き込まれるよう、Promise チェーンで順序を保証する。
+ */
+let saveQueue: Promise<void> = Promise.resolve()
+
+/**
  * 駅名を保存する。
  * - name が null の場合は空文字列 "" を書き込む（「自動モードに戻す」操作）。
  *   SDK に removeLocalStorage は存在しないため、空文字列でリセットを表現する。
  * - bridge が存在する場合: SDK localStorage に書く
  * - bridge が存在しない場合: ブラウザ localStorage に書く（dev 専用フォールバック）
+ * - 直列化: 連続タップによる並列呼び出しを防ぐため内部でキューに積む
  * @param name 保存する駅名。null は「自動モードに戻す」
  */
 export async function saveStationName(name: string | null): Promise<void> {
   const value = name ?? ''
-  try {
-    const bridge = await tryGetBridge()
-    if (bridge) {
-      await bridge.setLocalStorage(STATION_KEY, value)
-      return
+  saveQueue = saveQueue.then(async () => {
+    try {
+      const bridge = await tryGetBridge()
+      if (bridge) {
+        await bridge.setLocalStorage(STATION_KEY, value)
+        return
+      }
+      // dev フォールバック: ブラウザ localStorage を使う（シミュレーター / vite dev / preview 環境）
+      localStorage.setItem(STATION_KEY, value)
+    } catch {
+      // bridge 呼び出しが失敗した場合は握りつぶす（呼び出し側の state がキャッシュを兼ねる）
+      // チェーン内で catch しておくことで失敗が後続キューを壊さないようにする
     }
-    // dev フォールバック: ブラウザ localStorage を使う（シミュレーター / vite dev / preview 環境）
-    localStorage.setItem(STATION_KEY, value)
-  } catch {
-    // bridge 呼び出しが失敗した場合は握りつぶす（呼び出し側の state がキャッシュを兼ねる）
-  }
+  })
+  await saveQueue
 }

@@ -89,8 +89,8 @@ export function AppGlasses() {
   //       [E1|E2|E3:g|d|p]=拒否|測位不能|タイムアウト / 「現在地」=成功
   // 手動選択駅がある場合: GPS 診断表示より手動駅名を優先（診断は自動モード時のみ意味を持つ）
   useEffect(() => {
-    // 手動選択駅がある場合は GPS watchPosition を張るが origin/originLabel の更新は行わない
-    // （優先順位: 手動 > GPS > 既定 — 手動時は GPS fix が来ても上書きしない）
+    // 手動選択駅がある場合は watchPosition を張らない
+    // （解除されると effect が再実行され再登録される）
     if (selectedStation !== null) return
     let gotFix = false
     let perm = ''

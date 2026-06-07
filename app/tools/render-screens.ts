@@ -12,6 +12,7 @@
 import { createScreenMapper } from 'even-toolkit/glass-router'
 import type { DisplayLine, GlassAction } from 'even-toolkit/types'
 import { defaultOrigin, defaultOriginLabel } from '../src/data/shops'
+import { stations } from '../src/data/stations'
 import { onGlassAction, toDisplayData } from '../src/glass/selectors'
 import type { AppSnapshot } from '../src/glass/shared'
 
@@ -40,16 +41,30 @@ const menuItems = [
   { label: 'グルメ情報', path: GLASS_ROUTES.gourmet },
 ]
 
-/** プレビュー用の AppSnapshot を組み立てる（原点は既定値で固定） */
+/**
+ * プレビュー用の AppSnapshot を組み立てる。
+ * AppGlasses.tsx と同じ優先順位で origin / originLabel を解決する:
+ * - selectedStation が非 null → stations マスタから座標を引き、originLabel は駅名
+ * - null → 従来どおり defaultOrigin / defaultOriginLabel
+ */
 function snapshot(
   selectedGenre: string | null,
   selectedStation: string | null,
 ): AppSnapshot {
+  let origin = defaultOrigin
+  let originLabel = defaultOriginLabel
+  if (selectedStation !== null) {
+    const st = stations.find((s) => s.name === selectedStation)
+    if (st) {
+      origin = { lat: st.lat, lon: st.lon }
+      originLabel = selectedStation
+    }
+  }
   return {
     menuItems,
     flashPhase: false,
-    origin: defaultOrigin,
-    originLabel: defaultOriginLabel,
+    origin,
+    originLabel,
     selectedGenre,
     selectedStation,
   }
