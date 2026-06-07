@@ -6,7 +6,6 @@ import { useLocation, useNavigate } from 'react-router'
 import { defaultOrigin, defaultOriginLabel, type GeoPoint } from '../data/shops'
 import { type AppSnapshot, onGlassAction, toDisplayData } from './selectors'
 import type { AppActions } from './shared'
-import { appSplash } from './splash'
 
 const GLASS_ROUTES = {
   home: '/',
@@ -150,7 +149,10 @@ export function AppGlasses() {
     onGlassAction: handleGlassAction,
     deriveScreen,
     appName: 'HISHO',
-    splash: appSplash,
+    // 画像スプラッシュは使わない（テキスト「HISHO」描画のみで実質同等）。
+    // splash があると splash が作った「ロゴ下端からのテキスト領域」レイアウトが
+    // コールド起動の初回描画まで残り、ホームが上半分空白のまま切れる
+    // （needsRebuild が false になり updateHomeText しか走らないため）。
     // ホームは常駐ロゴ画像なしの全面テキスト（ロゴタイルがあるとテキスト領域が
     // タイル下端からになり、グルメ情報以降が 288px に収まらない）
     getPageMode: (screen) => (screen === 'home' ? 'home' : 'text'),
