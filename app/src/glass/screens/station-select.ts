@@ -31,18 +31,20 @@ export const stationSelectScreen: GlassScreen<AppSnapshot, AppActions> = {
         ...statusBarLines(),
         // 画面タイトル
         ...glassHeader('駅を選択'),
-        // 選択肢リスト（5 項目すべて表示。現在の設定値に ✓ マーク）
+        // 選択肢リスト（5 項目すべて表示。現在の設定値に ● マーク。
+        // ✓ U+2713 はグラスのフォントに無いため ● を使う）
         ...buildScrollableList({
           items: ITEMS,
           highlightedIndex: nav.highlightedIndex,
           maxVisible: 5,
           formatter: ({ label, value }) => {
-            // selectedStation が null なら「自動」に ✓、駅名一致ならその駅に ✓
+            // selectedStation が null なら「自動」に ●、駅名一致ならその駅に ●
             const isSelected =
               value === null
                 ? snapshot.selectedStation === null
                 : snapshot.selectedStation === value
-            return isSelected ? `✓ ${label}` : `  ${label}`
+            // ●(20px)+空白(5px) と空白5個(25px) で非選択行とラベル位置を揃える
+            return isSelected ? `● ${label}` : `${' '.repeat(5)}${label}`
           },
         }),
         // ヒント行（ナビゲーション操作を案内）
