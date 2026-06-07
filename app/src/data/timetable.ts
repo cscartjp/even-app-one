@@ -84,12 +84,17 @@ export function getNextDepartures(
   return result
 }
 
-/** 発車情報を G2 表示用の1行文字列にフォーマット（◆特急 ★急行 無印=普通） */
+/**
+ * 発車情報を G2 表示用の1行文字列にフォーマット（◆特急 ★急行 無印=普通）
+ * 新仕様: 種別マークは分後テキストの後ろ「HH:MM 行き先 N分後 ◆」（1スペース区切り）
+ */
 export function formatDeparture(dep: Departure): string {
   const wait = dep.minutesLeft === 0 ? 'まもなく' : `${dep.minutesLeft}分後`
   const mark = dep.ltdExpress ? '◆' : dep.express ? '★' : ''
-  // 無印の行は記号1文字ぶんを2スペースで補い、記号付きの行と桁を揃える
-  if (dep.dest) return `${dep.time}${mark || ' '} ${dep.dest} ${wait}`
-  if (mark) return `${dep.time}${mark} ${wait}`
-  return `${dep.time}  ${wait}`
+  if (dep.dest) {
+    return mark
+      ? `${dep.time} ${dep.dest} ${wait} ${mark}`
+      : `${dep.time} ${dep.dest} ${wait}`
+  }
+  return mark ? `${dep.time} ${wait} ${mark}` : `${dep.time}  ${wait}`
 }

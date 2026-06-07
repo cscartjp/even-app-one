@@ -41,6 +41,27 @@ export function AppGlasses() {
   const [originLabel, setOriginLabel] = useState<string>(defaultOriginLabel)
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null)
 
+  // 分単位の時刻カウンタ。分が変わるたびに更新し、全画面のステータスバー時計を再描画させる。
+  // minuteTick 自体は snapshot に含めず、state 変化による再レンダーだけを利用する。
+  // BLE 帯域節約のため 1 秒間隔ではなく分境界（setTimeout → setInterval）で更新する。
+  const [, setMinuteTick] = useState(() => Math.floor(Date.now() / 60000))
+
+  useEffect(() => {
+    // 次の分境界まで待機してから毎分更新するインターバルを開始する
+    const msUntilNextMinute = 60000 - (Date.now() % 60000)
+    let intervalId: ReturnType<typeof setInterval> | null = null
+    const timeoutId = setTimeout(() => {
+      setMinuteTick(Math.floor(Date.now() / 60000))
+      intervalId = setInterval(() => {
+        setMinuteTick(Math.floor(Date.now() / 60000))
+      }, 60000)
+    }, msUntilNextMinute)
+    return () => {
+      clearTimeout(timeoutId)
+      if (intervalId !== null) clearInterval(intervalId)
+    }
+  }, [])
+
   // ベストエフォートで現在地を監視（HTTPS等で不可なら既定駅のまま）。
   // Hub の WebView では getCurrentPosition(timeout付き) が初回フィックス前に
   // タイムアウトしやすく、コミュニティでは watchPosition の動作実績あり
