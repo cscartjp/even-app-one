@@ -88,7 +88,8 @@ export function getNextDepartures(
 export function formatDeparture(dep: Departure): string {
   const wait = dep.minutesLeft === 0 ? 'まもなく' : `${dep.minutesLeft}分後`
   const mark = dep.ltdExpress ? '◆' : dep.express ? '★' : ''
-  if (dep.dest) return `${dep.time}${mark} ${dep.dest} ${wait}`
+  // 無印の行は記号1文字ぶんを2スペースで補い、記号付きの行と桁を揃える
+  if (dep.dest) return `${dep.time}${mark || ' '} ${dep.dest} ${wait}`
   if (mark) return `${dep.time}${mark} ${wait}`
   return `${dep.time}  ${wait}`
 }
