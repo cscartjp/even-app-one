@@ -31,11 +31,11 @@ const SPACE_PX = getTextWidth(' ')
 const BAR_WIDTH_PX = getTextWidth('─'.repeat(27))
 
 /**
- * ステータスバー共通実装。全画面の出力先頭 1 行に挿入する。
- * 罫線は実機の 10 行制約のため省略（モックでは CSS border で表現）。
+ * ステータスバー共通実装。全画面の出力先頭 2 行（バー＋罫線）に挿入する。
+ * 罫線が 1 行消費するため、各画面は実機の 10 行制約に収まるよう空行を調整する。
  * 内容: 「HISHO」＋右寄せ「YYYY年M月D日（曜） HH:MM」（separator 右端に揃える）
  */
-export function statusBarLine(now: Date = new Date()): DisplayLine {
+export function statusBarLines(now: Date = new Date()): DisplayLine[] {
   const left = 'HISHO'
   const right = formatClock(now)
   const spaces = Math.max(
@@ -44,7 +44,7 @@ export function statusBarLine(now: Date = new Date()): DisplayLine {
       (BAR_WIDTH_PX - getTextWidth(left) - getTextWidth(right)) / SPACE_PX,
     ),
   )
-  return line(`${left}${' '.repeat(spaces)}${right}`)
+  return [line(`${left}${' '.repeat(spaces)}${right}`), line('', 'separator')]
 }
 
 export interface AppSnapshot {

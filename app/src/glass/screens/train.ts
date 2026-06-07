@@ -7,7 +7,7 @@ import {
   formatDeparture,
   getNextDepartures,
 } from '../../data/timetable'
-import { type AppActions, type AppSnapshot, statusBarLine } from '../shared'
+import { type AppActions, type AppSnapshot, statusBarLines } from '../shared'
 
 const SPACE_PX = getTextWidth(' ')
 const DASH_PX = getTextWidth('─')
@@ -96,12 +96,12 @@ export const trainScreen: GlassScreen<AppSnapshot, AppActions> = {
 
       return {
         lines: [
-          statusBarLine(now),
+          ...statusBarLines(now),
           line(`${station.name}駅`),
           line(colHeader),
           line(separator, 'meta'),
           ...dataLines,
-          line(''),
+          // ステータスバー罫線が 1 行使うため、凡例前の空行は置かない（10 行制約）
           line(station.legend, 'meta'),
         ],
       }
@@ -114,7 +114,7 @@ export const trainScreen: GlassScreen<AppSnapshot, AppActions> = {
     if (departures.length === 0) {
       return {
         lines: [
-          statusBarLine(now),
+          ...statusBarLines(now),
           line(`${station.name} → ${direction.label}`),
           line(''),
           line('本日の運行は終了しました'),
@@ -124,11 +124,11 @@ export const trainScreen: GlassScreen<AppSnapshot, AppActions> = {
 
     return {
       lines: [
-        statusBarLine(now),
+        ...statusBarLines(now),
         line(`${station.name} → ${direction.label}`),
         line('', 'separator'),
         ...departures.map((d) => line(formatDeparture(d))),
-        line(''),
+        // ステータスバー罫線が 1 行使うため、凡例前の空行は置かない（10 行制約）
         line(station.legend, 'meta'),
       ],
     }
