@@ -35,6 +35,11 @@ function todayRanges(shop: Shop, now: Date): readonly TimeRange[] {
 
 /** 現在時刻に対する店の状態を計算 */
 export function getShopStatus(shop: Shop, now: Date): ShopStatus {
+  // 曜日別の定休日は weekday/weekend の営業帯より優先
+  if (shop.closedDays?.includes(now.getDay())) {
+    return { state: 'closed', label: '定休' }
+  }
+
   const ranges = todayRanges(shop, now)
   const nowMin = now.getHours() * 60 + now.getMinutes()
 

@@ -23,6 +23,14 @@ export interface Station {
   readonly directions: readonly [DirectionSchedule, ...DirectionSchedule[]]
 }
 
+/** 西鉄福岡(天神)駅。GPS テスト中は既定 origin（shops.ts）もこの座標を参照する */
+export const tenjinStation: Station = {
+  name: '西鉄福岡(天神)',
+  lat: 33.58912807066921,
+  lon: 130.39993557532804,
+  directions: [tenjinDown],
+}
+
 /** 大保駅。GPS 不可時の既定 origin（shops.ts）もこの座標を参照する */
 export const ohoStation: Station = {
   name: '大保',
@@ -45,12 +53,7 @@ export const stations: readonly Station[] = [
     lon: 130.51519225415385,
     directions: [hanabatakeUp],
   },
-  {
-    name: '西鉄福岡(天神)',
-    lat: 33.58912807066921,
-    lon: 130.39993557532804,
-    directions: [tenjinDown],
-  },
+  tenjinStation,
 ]
 
 /** 原点（GPS 現在地または既定値）に最も近い駅を返す */
