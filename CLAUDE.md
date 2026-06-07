@@ -21,6 +21,12 @@ Always use:
 Reason:
 grep is not installed on this machine and commands will fail.
 
+## 保護ファイル（上書き禁止）
+
+- **`app/preview/design-mock.html` は UI デザインの正本（手作りモック・読み取り専用 chmod 444）**
+- このファイルへの書き込み・cp・再生成出力は禁止。`bun run preview:screens` の出力先は `app/preview/index.html` のみ
+- デザイン変更はユーザーの明示承認後に chmod で解除してから行う
+
 ## リポジトリの目的
 
 Even Realities のスマートグラス **Even G2** 向けアプリ（Even Hub プラグイン）を開発する個人の趣味プロジェクト。Even Realities 社とは無関係（非公式）。
