@@ -9,8 +9,9 @@
 
 export interface DepartureEntry {
   readonly m: number
-  readonly express?: true // ★ 筑紫より急行（天神方面のみ）
-  readonly dest?: string // 行き先短縮名（大牟田方面のみ）
+  readonly express?: true // ★ 急行（大保では「筑紫より急行」）
+  readonly ltdExpress?: true // ◆ 特急
+  readonly dest?: string // 行き先短縮名
 }
 
 export type Timetable = Readonly<Record<number, readonly DepartureEntry[]>>

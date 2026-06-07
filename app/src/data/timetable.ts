@@ -9,8 +9,10 @@ export interface Departure {
   time: string
   /** 現在時刻からの残り分数 */
   minutesLeft: number
-  /** ★ 筑紫より急行 */
+  /** ★ 急行 */
   express?: true
+  /** ◆ 特急 */
+  ltdExpress?: true
   /** 行き先短縮名 */
   dest?: string
 }
@@ -35,6 +37,7 @@ function toDeparture(
     time: nextDay ? `翌${hh}:${mm}` : `${hh}:${mm}`,
     minutesLeft,
     ...(entry.express && { express: true }),
+    ...(entry.ltdExpress && { ltdExpress: true }),
     ...(entry.dest && { dest: entry.dest }),
   }
 }
@@ -83,10 +86,11 @@ export function getNextDepartures(
   return result
 }
 
-/** 発車情報を G2 表示用の1行文字列にフォーマット */
+/** 発車情報を G2 表示用の1行文字列にフォーマット（◆特急 ★急行 無印=普通） */
 export function formatDeparture(dep: Departure): string {
   const wait = dep.minutesLeft === 0 ? 'まもなく' : `${dep.minutesLeft}分後`
-  if (dep.express) return `${dep.time}★ ${wait}`
-  if (dep.dest) return `${dep.time} ${dep.dest} ${wait}`
+  const mark = dep.ltdExpress ? '◆' : dep.express ? '★' : ''
+  if (dep.dest) return `${dep.time}${mark} ${dep.dest} ${wait}`
+  if (mark) return `${dep.time}${mark} ${wait}`
   return `${dep.time}  ${wait}`
 }
