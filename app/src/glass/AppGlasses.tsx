@@ -12,6 +12,7 @@ import { loadStationName, saveStationName } from './storage'
 const GLASS_ROUTES = {
   home: '/',
   train: '/train',
+  station: '/station',
   gourmet: '/gourmet',
   gourmetNearby: '/gourmet/nearby',
 } as const
@@ -20,6 +21,8 @@ const deriveScreen = createScreenMapper(
   [
     { pattern: GLASS_ROUTES.home, screen: 'home' },
     { pattern: GLASS_ROUTES.train, screen: 'train' },
+    { pattern: GLASS_ROUTES.station, screen: 'station' },
+    // gourmetNearby は gourmet より前（プレフィックス衝突回避）
     { pattern: GLASS_ROUTES.gourmetNearby, screen: 'gourmetNearby' },
     { pattern: GLASS_ROUTES.gourmet, screen: 'gourmet' },
   ],
