@@ -93,6 +93,8 @@ Hermes Agent API Server（`hermes gateway`）
 
 > 追加日: 2026-06-08（`/harness-work 3.0` 起点）。**team_validation_mode: `subagent`**（Explore で even-toolkit audio API、general-purpose で 権限/レイテンシ/転送方式リスクを 2026-06-08 に検証。2 視点が独立に「案C=サーバ側STT が最小変更」「実機マイク権限が最大リスクで gating spike 必須」へ収束）。
 
+> **バージョン方針**: v0.1.0 は実機にインストール済みのため、同一バージョンだと G2 がアップデートを認識しない。実機に載せる中間ビルド（3.0〜3.4）は `app.json` の `version` を**パッチバンプ**（0.1.1, 0.1.2, …）して pack する。`0.2.0` は Phase 3 完了（3.5）のリリース版に温存。実 IP は placeholder のみ commit し pack 前にローカルで置換する既存運用は維持。
+
 **アーキテクチャ（確定）**: G2 マイク → even-toolkit `GlassBridgeSource`（`audioControl` 経由で生 PCM 取得）→ WebView でバッファ → **録音終了時に単発アップロード**（HTTP チャンク連打 / WebSocket は不採用）→ Bridge `POST /v1/stt`（Bearer 認証・proxy）→ **Mac B の warm mlx-whisper サイドカー**（`whisper-large-v3-mlx`・モデル1回ロード常駐）→ transcript → **既存 `/v1/ask` で Hermes**（Phase 1 の検証済みパスを無改変で再利用）→ pages 表示。音声・STT は **Mac B ローカル完結で外部送信ゼロ**（案C: API キー不要・課金ゼロ・プライバシー◎。memory `stt-mac-b-mlx-whisper`）。
 
 ### 設計上の正本差分（仕様書 §5.2/§7.2/§9.1 からの読み替え）
