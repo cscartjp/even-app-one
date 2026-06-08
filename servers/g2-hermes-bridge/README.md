@@ -44,3 +44,28 @@ bun install           # 依存解決（リポジトリ root で実行）
 | `HERMES_BASE_URL` | Hermes API Server のベース URL（`/v1` まで）。別 Mac の Hermes には SSH トンネルで 127.0.0.1 維持 or Tailscale IP 指定 |
 | `HERMES_API_KEY` | Hermes の API キー。WebView には渡さない |
 | `HERMES_TIMEOUT_MS` | Bridge→Hermes タイムアウト（ms・任意、既定 30000） |
+
+## 常時自動起動（launchd・Mac B）
+
+構成 B-1（Bridge を Hermes と同一 Mac = Mac B に同居）での常時自動起動手順。Bridge は Hermes に依存するため、**Hermes gateway → Bridge の順**に登録する。どちらもユーザー LaunchAgent（`~/Library/LaunchAgents/`、sudo 不要）。
+
+```bash
+# 1. Hermes gateway を launchd サービス化（純正コマンド・冪等。--force で再インストール）
+hermes gateway install
+hermes gateway status          # "Gateway service is loaded" を確認
+
+# 2. Bridge の plist を配置して登録
+cp deploy/com.frogman.g2hermes-bridge.plist ~/Library/LaunchAgents/
+pkill -f "bun src/index.ts" 2>/dev/null   # 手動 nohup 起動が残っていれば停止（ポート競合回避）
+launchctl load -w ~/Library/LaunchAgents/com.frogman.g2hermes-bridge.plist
+
+# 3. 確認
+launchctl list | rg 'frogman|ai.hermes.gateway'
+curl -s http://127.0.0.1:8787/health     # {"ok":true,...,"hermes":"reachable"}
+```
+
+[`deploy/com.frogman.g2hermes-bridge.plist`](deploy/com.frogman.g2hermes-bridge.plist) は `RunAtLoad`（ログイン時起動）+ `KeepAlive`（クラッシュ時自動復帰）。`WorkingDirectory` を Bridge ディレクトリに設定しているため Bun が `.env` を自動読込する。ログは `~/g2bridge.log` / `~/g2bridge.err`。
+
+停止・解除は `launchctl unload -w ~/Library/LaunchAgents/com.frogman.g2hermes-bridge.plist`。
+
+> **注意**: macOS のユーザー LaunchAgent は **GUI ログイン時**に起動する。Mac B が自動ログイン無効の場合、再起動後に GUI ログインするまで Bridge / Hermes は起動しない。完全無人で復帰させたい場合は Mac B 側で自動ログインを有効化する。
