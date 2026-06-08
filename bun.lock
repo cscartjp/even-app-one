@@ -3,7 +3,11 @@
   "configVersion": 1,
   "workspaces": {
     "": {
+      "name": "even-app-one",
+    },
+    "apps/hisho": {
       "name": "hisho",
+      "version": "1.0.0",
       "dependencies": {
         "@evenrealities/even_hub_sdk": "^0.0.10",
         "@evenrealities/pretext": "^0.1.4",
@@ -291,6 +295,8 @@
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
     "graceful-fs": ["graceful-fs@4.2.11", "", {}, "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="],
+
+    "hisho": ["hisho@workspace:apps/hisho"],
 
     "iconv-lite": ["iconv-lite@0.7.2", "", { "dependencies": { "safer-buffer": ">= 2.1.2 < 3.0.0" } }, "sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw=="],
 

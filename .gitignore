@@ -1,10 +1,14 @@
 # Dependencies
 node_modules/
 
+# Workspace: lockfile はルートに一元化（各アプリのものは無視）
+apps/*/bun.lock
+
 # Build output
 dist/
 build/
 *.ehpk
+*.tsbuildinfo
 
 # Logs
 *.log
