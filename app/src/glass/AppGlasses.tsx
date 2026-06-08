@@ -5,7 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { defaultOrigin, defaultOriginLabel, type GeoPoint } from '../data/shops'
 import { stations } from '../data/stations'
-import { type AppSnapshot, onGlassAction, toDisplayData } from './selectors'
+import {
+  type AppSnapshot,
+  onGlassAction,
+  toDisplayData,
+  toSplit,
+} from './selectors'
 import type { AppActions } from './shared'
 import { loadStationName, saveStationName } from './storage'
 
@@ -196,6 +201,9 @@ export function AppGlasses() {
   useGlasses({
     getSnapshot,
     toDisplayData,
+    // 注意: getPageMode に 'split' を追加しても toSplit 未指定だと
+    // text モードに静かにフォールバックする（useGlasses 仕様）。必ずセットで渡す
+    toSplit,
     onGlassAction: handleGlassAction,
     deriveScreen,
     appName: 'HISHO',
@@ -205,7 +213,12 @@ export function AppGlasses() {
     // （needsRebuild が false になり updateHomeText しか走らないため）。
     // ホームは常駐ロゴ画像なしの全面テキスト（ロゴタイルがあるとテキスト領域が
     // タイル下端からになり、グルメ情報以降が 288px に収まらない）
-    getPageMode: (screen) => (screen === 'home' ? 'home' : 'text'),
+    getPageMode: (screen) =>
+      screen === 'home'
+        ? 'home'
+        : screen === 'gourmetNearby'
+          ? 'split'
+          : 'text',
   })
 
   return null

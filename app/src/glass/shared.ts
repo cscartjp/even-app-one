@@ -31,20 +31,29 @@ const SPACE_PX = getTextWidth(' ')
 const BAR_WIDTH_PX = getTextWidth('─'.repeat(27))
 
 /**
- * ステータスバー共通実装。全画面の出力先頭 2 行（バー＋罫線）に挿入する。
- * 罫線が 1 行消費するため、各画面は実機の 10 行制約に収まるよう空行を調整する。
- * 内容: 「HISHO」＋右寄せ「YYYY年M月D日（曜） HH:MM」（separator 右端に揃える）
+ * left と right を separator 右端（540px）に揃えて 1 行にする。
+ * ステータスバーと split ヘッダーの右寄せ（時計 / N/M カウント）で共用。
  */
-export function statusBarLines(now: Date = new Date()): DisplayLine[] {
-  const left = 'HISHO'
-  const right = formatClock(now)
+export function justifyToBarWidth(left: string, right: string): string {
   const spaces = Math.max(
     1,
     Math.floor(
       (BAR_WIDTH_PX - getTextWidth(left) - getTextWidth(right)) / SPACE_PX,
     ),
   )
-  return [line(`${left}${' '.repeat(spaces)}${right}`), line('', 'separator')]
+  return `${left}${' '.repeat(spaces)}${right}`
+}
+
+/**
+ * ステータスバー共通実装。全画面の出力先頭 2 行（バー＋罫線）に挿入する。
+ * 罫線が 1 行消費するため、各画面は実機の 10 行制約に収まるよう空行を調整する。
+ * 内容: 「HISHO」＋右寄せ「YYYY年M月D日（曜） HH:MM」（separator 右端に揃える）
+ */
+export function statusBarLines(now: Date = new Date()): DisplayLine[] {
+  return [
+    line(justifyToBarWidth('HISHO', formatClock(now))),
+    line('', 'separator'),
+  ]
 }
 
 const ELLIPSIS = '…'
