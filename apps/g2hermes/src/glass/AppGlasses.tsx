@@ -46,6 +46,9 @@ export function AppGlasses() {
   pagesRef.current = pages
   // 起動中のマイク probe ハンドル（停止対象）
   const probeHandleRef = useRef<MicProbeHandle | null>(null)
+  // probe の世代トークン。back()/再 probe() で +1 し、古い probe の onUpdate が
+  // 新しい probe 画面に stats を混ぜないようにする（Copilot 指摘）。
+  const probeTokenRef = useRef(0)
   // マイクは global（audioControl は端末 1 つの toggle）なので、起動/停止を 1 本の
   // promise chain で直列化する。これをしないと、起動待ち中に再操作したとき古い probe の
   // 停止 audioControl(false) が新しい probe のマイクを閉じ、gating が false negative に
@@ -95,7 +98,8 @@ export function AppGlasses() {
     if (n > 0) setPageIndex((i) => (i - 1 + n) % n)
   }, [])
   const back = useCallback(() => {
-    // probe 中なら直列 chain でマイクを閉じる（UI は即 idle へ）
+    // 古い probe の onUpdate を無効化してから（token++）、直列 chain でマイクを閉じる
+    probeTokenRef.current += 1
     void stopProbe()
     setProbeStats(null)
     setPages([])
@@ -110,6 +114,7 @@ export function AppGlasses() {
 
   // Task 3.0 gating spike: マイク診断を開始する（暫定）
   const probe = useCallback(() => {
+    const token = ++probeTokenRef.current
     setProbeStats(null)
     setPhase('probe')
     void enqueueMic(async () => {
@@ -117,7 +122,10 @@ export function AppGlasses() {
       const prev = probeHandleRef.current
       probeHandleRef.current = null
       if (prev) await prev.stop()
-      probeHandleRef.current = await startMicProbe(setProbeStats)
+      // この probe が最新世代のときだけ stats を反映（古い世代の混入を防ぐ）
+      probeHandleRef.current = await startMicProbe((stats) => {
+        if (token === probeTokenRef.current) setProbeStats(stats)
+      })
     })
   }, [enqueueMic])
 

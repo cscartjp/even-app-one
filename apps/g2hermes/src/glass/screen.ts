@@ -91,11 +91,18 @@ export const hermesScreen: GlassScreen<Snapshot, Ctx> = {
 
     if (s.phase === 'probe') {
       const p = s.probeStats
-      const status = p?.note
-        ? p.note
-        : p?.started
-          ? '起動OK・受信待ち'
-          : '起動失敗(権限?)'
+      // null（startMicProbe の bridge 待ち中）は「起動中…」。これを「起動失敗」にすると
+      // 起動直後の数百ms〜1.5s が誤判定（false negative）になる（CodeRabbit/Copilot 指摘）。
+      // started 後は events>0 で「受信中」、未受信なら「受信待ち」。
+      const status = !p
+        ? '起動中…'
+        : p.note
+          ? p.note
+          : p.started
+            ? p.events > 0
+              ? '受信中'
+              : '起動OK・受信待ち'
+            : '起動失敗(権限?)'
       const bytes =
         p && p.firstBytes.length > 0 ? `[${p.firstBytes.join(' ')}]` : '-'
       return {
