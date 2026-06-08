@@ -15,13 +15,22 @@ export interface BridgeConfig {
   hermesTimeoutMs: number
 }
 
-/** 環境変数から設定を読む。未設定はローカル開発向けの既定値にフォールバックする。 */
+/** 環境変数から設定を読む。未設定・不正値はローカル開発向けの既定値にフォールバックする。 */
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
   return {
-    port: Number(env.PORT ?? 8787),
+    port: toPositiveInt(env.PORT, 8787),
     bridgeToken: env.BRIDGE_TOKEN ?? 'dev-token',
     hermesBaseUrl: env.HERMES_BASE_URL ?? 'http://127.0.0.1:8642/v1',
     hermesApiKey: env.HERMES_API_KEY ?? 'change-me-local-dev',
-    hermesTimeoutMs: Number(env.HERMES_TIMEOUT_MS ?? 30000),
+    hermesTimeoutMs: toPositiveInt(env.HERMES_TIMEOUT_MS, 30000),
   }
+}
+
+/**
+ * 正の有限整数として解釈できなければ fallback を返す。
+ * `PORT=abc`（NaN）や空文字（0）で listen({ port: NaN }) や即時 abort を起こさないため。
+ */
+function toPositiveInt(value: string | undefined, fallback: number): number {
+  const n = Number(value)
+  return Number.isInteger(n) && n > 0 ? n : fallback
 }

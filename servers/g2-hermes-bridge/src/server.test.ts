@@ -52,6 +52,37 @@ describe('POST /v1/ask 認証', () => {
     expect(res.statusCode).toBe(401)
     await app.close()
   })
+
+  test('スキーム大小・余分な空白を許容して認証を通す', async () => {
+    const app = makeApp()
+    // 認証を通れば zod で 400（text 空）になる。401 にならないこと＝認証通過の確認。
+    for (const authorization of [
+      `bearer ${TOKEN}`,
+      `Bearer  ${TOKEN}`,
+      `  Bearer ${TOKEN}  `,
+    ]) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/ask',
+        headers: { authorization },
+        payload: { sessionId: 's', text: '' },
+      })
+      expect(res.statusCode).toBe(400)
+    }
+    await app.close()
+  })
+
+  test('スキーム無し（トークンのみ）は 401', async () => {
+    const app = makeApp()
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/ask',
+      headers: { authorization: TOKEN },
+      payload: { sessionId: 's', text: 'hi' },
+    })
+    expect(res.statusCode).toBe(401)
+    await app.close()
+  })
 })
 
 describe('POST /v1/ask 正常系（Hermes はモック）', () => {

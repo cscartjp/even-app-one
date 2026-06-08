@@ -58,7 +58,7 @@ export function buildServer(deps: BuildServerDeps) {
     if (req.method === 'OPTIONS') return
     const path = req.url.split('?')[0] ?? req.url
     if (PUBLIC_PATHS.has(path)) return
-    if (req.headers.authorization !== `Bearer ${config.bridgeToken}`) {
+    if (extractBearerToken(req.headers.authorization) !== config.bridgeToken) {
       return reply.code(401).send({ ok: false, error: 'unauthorized' })
     }
   })
@@ -103,4 +103,14 @@ export function buildServer(deps: BuildServerDeps) {
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
+}
+
+/**
+ * Authorization ヘッダから Bearer トークンを取り出す。
+ * スキームは大小無視（RFC 7235）、前後・スキーム後の余分な空白を許容する。
+ */
+function extractBearerToken(header: string | undefined): string | null {
+  if (!header) return null
+  const match = /^Bearer\s+(\S.*)$/i.exec(header.trim())
+  return match ? match[1].trim() : null
 }
