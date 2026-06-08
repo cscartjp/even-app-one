@@ -89,6 +89,62 @@ Hermes Agent API Server（`hermes gateway`）
 - [x] Mac B（Hermes 同居機）の Tailscale IP（whitelist 用）: 確定済み。**実値は公開 repo に書かずローカルにのみ保持**し、`app.json` は placeholder（`100.64.0.1`）を commit、`evenhub pack` 前にローカルで実 IP へ置換（B-1）
 - [ ] Hermes 応答の実レイテンシ（ツール実行時）: （1.1/1.5 で記録）
 
+## Phase 3: 音声入力（G2マイク → ローカル STT → Hermes）
+
+> **Spec delta（2026-06-08・承認済み）**: product contract `docs/spec/g2-hermes-bridge.md` §13 Phase 3 を具体化する設計デルタを `docs/spec/g2-hermes-phase3-voice.md` として新設。precedence: `g2-hermes-bridge.md` > `g2-hermes-phase3-voice.md` > 本 `Plans.md`。Phase 1 資産（`/v1/ask`・`paginateForG2`・session）は**無改変再利用**。
+>
+> **team_validation_mode**: `subagent`（2026-06-08。Explore×2 で even-toolkit/stt・SDK 型を一次照合〔判定D: provider はクラウド固定・`GlassBridgeSource` で生 PCM 取得〕、Skeptic/Security/QA 複合レビューで分解を検証〔BLOCKER2/HIGH5/MEDIUM5 を反映〕。Product/Architecture は brainstorming で user 承認）。harness-mem 照合済: `stt-mac-b-mlx-whisper` / `reference_hub_dev_mode` / `g2-sideload-workflow` / `feedback-keep-deploy-artifacts-in-repo`。
+>
+> **ゲート方針**: **3.0（実機マイク到達性）が通るまでサイドカー本実装 3.1.1 以降の重い投資は本格化しない**。3.0 が blocked の場合、並列安全タスク（3.1.0 / 3.3.1 / 3.4.1 / 3.2.1 のルート骨格）のみ前進し、代替（`phone-microphone` 等）を検討。
+>
+> **lint/format baseline**: TS = biome（既存）。Python サイドカーは新規のため 3.1.0 で ruff/pytest を先行設置。
+> **前提**: Phase 1 の Bridge が Mac B で launchd 稼働中。Phase 3 は既存 `servers/g2-hermes-bridge` にルート追加 + 新規 STT サイドカー。
+
+### Phase 3.0: ゲート（実機マイク到達性スパイク）
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.0 | 実機マイク到達性スパイク。捨て（or 正式版）`app.json` に `g2-microphone` を足し、最小キャプチャ + console ログをサイドロード。**シミュレーター不可（Mac マイク代替で `g2-microphone` 権限フローを検証できない）＝実機のみ**。先に配布経路（sideload / Hub In-Development）を決める。実機操作はユーザー [tdd:skip:throwaway-spike] | 実機で `audioControl(true)` が `true` を返し、`audioEvent.audioPcm`（非空 Uint8Array）が console に届くことをユーザーが確認・記録。**シミュレーター green は不可**。権限が降りない/拒否なら `blocked` にし `phone-microphone` 等の代替を検討 | - | cc:TODO |
+
+### Phase 3.1: STT サイドカー（Mac B・ローカル mlx-whisper）
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.1.0 | Python サイドカー tooling baseline。配置 `servers/g2-hermes-stt`（Mac B では `~/ai/.venv` 3.12 で実行）。ruff + pytest 設定 [tdd:skip:setup] | `ruff check` 0、`pytest -q` が exit 0（collect 0 回避のため最小 smoke 1件を置く） | - | cc:TODO |
+| 3.1.1 | サイドカー実装: mlx-whisper（`whisper-large-v3-mlx`）warm 常駐、`POST /transcribe`（WAV bytes・**メモリ Buffer 直渡しでディスク回避を優先**）→`{text,ms}`、`GET /health`（loaded 真偽）、**127.0.0.1 のみ bind**、日本語 + 幻覚リピート除去。**Mac B の `~/ai/transcribe.py` 実在を確認し当該ロジック流用、無ければ language=ja + 幻覚除去を新規実装**。同時リクエストは直列化 or 503 [tdd:required] | pytest で既知 WAV フィクスチャ→text に期待語が**含まれる**（実推論は非決定的なため緩い assert）。`/health` loaded=true。`lsof -nP -iTCP:8643 -sTCP:LISTEN` が `127.0.0.1:8643` のみ（`*`/`0.0.0.0` でない）。**large-v3 常駐 RSS を実測し Mac B RAM で Hermes 同居・スワップ無し**。`float32ToWav` 出力 WAV を読める（不可なら soundfile/ffmpeg 経由）。空/極短/無音で幻覚テキストを返さない（or 呼び出し側で弾く前提を明記） | 3.0, 3.1.0 | cc:TODO |
+| 3.1.2 | launchd plist `com.frogman.g2hermes-stt`（RunAtLoad/KeepAlive/ThrottleInterval）+ repo 配置（memory `feedback-keep-deploy-artifacts-in-repo`） [tdd:skip:deploy-config] | launchctl 常駐、`kill -9`→自動復帰し /health loaded=true まで戻る（再ロード秒数を記録）、`launchctl kickstart -k` 後 /health 200。plist を repo に残す。**Tailscale IP から 8643 へ接続不可**を確認（loopback 実証） | 3.1.1 | cc:TODO |
+
+### Phase 3.2: Bridge ルート（既存サーバーに追加）
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.2.1 | `POST /v1/transcribe`: **`addContentTypeParser('audio/wav')` で raw Buffer 受信**、Bearer、size 上限→413、`AbortController`→504、**サイドカー不達→502**、OPTIONS 認証スキップ。サイドカーへ転送。一時データはメモリ優先（ディスクなら 0600+finally 削除）。ルート骨格+inject は 3.1.1 を待たず着手可、実サイドカー curl だけ 3.1.1 依存 [tdd:required]（fetchImpl でサイドカーをモック） | inject テストで 401（無トークン）/ 200+`{text}` / **415 でない（audio/wav parser 登録済）** / OPTIONS 204+CORS（audio/wav preflight 通過）/ 413（size超）/ 502（不達）/ 504（timeout）。biome 0、build 成功 | 3.1.1 | cc:TODO |
+| 3.2.2 | `GET /health` 拡張: STT 到達性 `stt` フィールド追加 [tdd:required] | fetchImpl モックで stt 200→reachable / ECONNREFUSED→unreachable に切り替わる inject テスト。biome 0 | 3.2.1 | cc:TODO |
+
+### Phase 3.3: クライアント音声キャプチャ（even-toolkit 流用）
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.3.1 | even-toolkit/stt の export 実体確認（`GlassBridgeSource` / `createAudioBuffer` / `float32ToWav` の正確な名・signature）。`bun install` 済みで `even-toolkit/stt` が解決することを確認。無ければ自前 WAV エンコーダ（44byte header + Int16）方針を確定 [tdd:skip:investigation] | 正確な export 名・引数を設計ノート（spec §9-1）に記録。解決不能なら自前エンコーダ方針を記録 | - | cc:TODO |
+| 3.3.2 | 音声キャプチャ + WAV化 + POST: `bridgeClient` に `transcribe()` 追加、`AbortController`、最大30s タイマー、停止/終了/`beforeunload` で `source.stop()`（`audioControl(false)`）。空/極短録音はクライアント閾値で弾き recording へ戻す [tdd:required] | PCM→WAV ユニット（無音/最大長/通常）green、空/極短を弾く判定のユニット green、biome 0、build 成功 | 3.2.1, 3.3.1 | cc:TODO |
+
+### Phase 3.4: 状態機械 + 権限
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.4.1 | `app.json` に `g2-microphone` 権限追加（`desc` は審査向け文言＝spec §4.6）。network whitelist は不変 [tdd:skip:config] | `app.json` に `g2-microphone` と desc 文言が実在、evenhub-cli で valid、network whitelist 不変 | - | cc:TODO |
+| 3.4.2 | 状態機械拡張 `idle→recording→transcribing→review→thinking→answer` + `screen.ts` action（録音開始/停止/送信/録り直し）、idle にプリセット併存、error 表示。**recording 中 background→foreground で `audioControl` が閉じ/復帰**（`everything-evenhub:background-state`）。recording 表示は静的 or 更新 ≤1s で BLE 過負荷回避 [tdd:required]（reducer ユニット。シミュレーター部分は integration） | 状態遷移 reducer ユニット green。シミュレーターで状態遷移とモック PCM の配線確認（実音声は 3.5.1）。background→foreground でマイクが閉じ/復帰する確認。biome 0、build 成功 | 3.3.2, 3.4.1 | cc:TODO |
+
+### Phase 3.5: E2E + パッケージング
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.5.1 | 実機 E2E（録音→ローカル文字起こし→確認→Hermes 回答）。レイテンシ P50/P95 実測、実機 `audioPcm` 到達、マイク許可フロー確定、秘密境界確認、`.ehpk` 生成。whitelist は Tailscale IP full origin（placeholder commit→pack 前ローカル置換。**既存 `apps/g2hermes/app.json` の whitelist が placeholder 運用に沿っているか確認・是正も含む**） [tdd:skip:integration-e2e] | 実機で E2E 成功。P50/P95 記録し Bridge transcribe タイムアウト ≥ P95×2。**tcpdump/ログで音声が Tailscale 外に平文流出しない・`HERMES_API_KEY` が WebView bundle/通信に出ない**ことを各1回確認。`g2hermes.ehpk` 生成。実機最終確認はユーザー | 3.1.2, 3.2.2, 3.4.2 | cc:TODO |
+
+### Phase 3 スコープ外
+
+- リアルタイム途中字幕（streaming STT・WebSocket）／ TTS（§13 Phase 4）／ 常用化: Tunnel・HTTPS・JWT・rate limit（§13 Phase 5）／ 音声コマンド操作。
+
 ## 制約
 
 - **`apps/hisho/` は一切改変しない**（読み取り・参照のみ。ユーザー指示 2026-06-08）。`apps/hisho/preview/design-mock.html` は保護ファイル。
