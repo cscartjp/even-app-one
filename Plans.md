@@ -105,3 +105,90 @@ wiki [[ローカルストレージ]]（公式プラグイン device-features + g
 ---
 
 Next Step: Use harness_workflow_work to start implementation
+
+---
+
+## Plan: グルメ（近い順）画面の左右分割化（v0.1.7）
+
+作成日: 2026-06-08
+
+正本（product contract）: `app/preview/design-mock.html`（**2026-06-08 確定版**・読み取り専用 chmod 444）。
+グルメ（近い順）を左右分割（左=店舗リスト / 右=選択店舗の詳細）に変更済み。ユーザー承認済みデザイン。
+
+- Spec delta: design-mock.html を 2026-06-08 に更新（左右分割・店名省略・TEL 行）。root spec.md は無くこのリポジトリでは design-mock.html が UI の product contract（Phase 1 と同じ規約）
+- team_validation_mode: subagent（Explore エージェントで Architecture / QA / Skeptic 検証済み 2026-06-08。結論: 実現可能）
+
+## 背景
+
+- 現状の gourmet-nearby.ts は縦1列リスト + 選択店舗の詳細行が同じ縦リストに混在し、店舗が複数あると見にくい
+- 確定デザイン: ヘッダー（タイトル + 件数 N/M）/ 左ペイン=店舗リスト（●○営業マーク + 店名 + 距離）/ 右ペイン=選択店舗詳細（正式名称(最大2行折返し) + 営業状況 + TEL + 補足）
+- 店名は左リストで省略（全角9文字相当・距離は欠けさせない・100km 超なし前提）、右ペイン1行目に正式名称をフル表示
+- モック内のラーメン5店舗（横浜家系ラーメン筑紫商店等）と TEL 092-555-xxxx は**架空のデモデータ**。shops.ts には追加しない
+
+## 技術前提（サブエージェント検証済み・根拠付き）
+
+- even-toolkit は **split モードをネイティブサポート**: `useGlasses` の `getPageMode` が 'split' を返すと `toSplit(snapshot, nav)` → `hub.showSplitPage/updateSplitPage(header, panes, layout)`（useGlasses.ts:93-99）
+- `SplitLayout` で headerHeight / leftWidth / rightWidth 指定可（types.ts:59-77）。コンテナは overlay(1)+header(6)+left(7)+right(8) の4個で制限内（bridge.ts:224-285）
+- ハイライトは text container の「▶ 」プレフィックス方式（types.ts renderTextPageLine）。FW リストコンテナは使わない（bridge.ts に API なし）
+- headerHeight 固定なら選択移動は `updateSplitPage`（TextContainerUpgrade）で軽量更新・ちらつき低（bridge.ts:287-335）
+- ピクセル幅省略は `@evenrealities/pretext` の getTextWidth で実装可能（shared.ts statusBarLines / train.ts padLeft と同パターン）
+- **罠**: getPageMode に 'split' を追加しても toSplit 未定義だと text モードに静かにフォールバックする（useGlasses.ts:84,93）→ 配線は同一タスク内で行う
+- render-screens.ts は toDisplayData のみ対応で split 非対応 → preview 生成の拡張が必要
+
+## 実装内容
+
+### 1. shared.ts: truncateByPixel ユーティリティ
+
+- `truncateByPixel(text, maxPx): string` — getTextWidth で1文字ずつ幅を積算し、超過時は「…」を付けて省略（はみ出さない側に丸める）
+- 左リスト店名上限はモックの「全角9文字相当」を pretext ピクセルに換算して定数化（leftWidth から距離・マーク・マージン分を引いて導出してもよい）
+
+### 2. shops.ts: Shop 型に tel 追加
+
+- `readonly tel?: string` を Shop に追加（省略可能。モック同様 TEL 無し店舗は行ごと非表示）
+- 実在データへの tel 追記は判明している店舗のみ任意で（架空番号は入れない）
+
+### 3. gourmet-nearby の split 化（本体）
+
+- gourmet-nearby.ts に split ビルダーを追加（例: `gourmetNearbySplit(snapshot, nav): SplitData`）
+  - header: ステータスバー1行（statusBarLines の本体行）+ タイトル行「{ジャンル} ({originLabel})」+ 右寄せ「N/M」（statusBarLines と同じ getTextWidth 右寄せパターン）
+  - 左ペイン: `▶ `(選択行) + `●/○`(statusMark) + 省略店名 + 距離(formatDistance)。スクロールウィンドウは slidingWindowStart / buildScrollableList 相当を流用（maxVisible はモック準拠で 6〜7、実機10行制約から逆算）
+  - 右ペイン: 正式名称（コンテナ幅で自動折返し・実質最大2行）+ 営業状況（statusMark + getShopStatus label）+ `TEL {tel}`（tel がある時のみ）+ 補足 note（ある時のみ）
+  - 0件時は従来どおり text モードの「該当する店がありません」でよい（toSplit 内で空ペイン構成にするか text fallback かは実装時判断・モック非対象）
+- selectors.ts: `toSplit` をエクスポート（gourmetNearby のみ split データ、他画面は呼ばれない前提でもガードを入れる）
+- AppGlasses.tsx: `useGlasses` に `toSplit` を渡し、`getPageMode` を「home→'home' / gourmetNearby→'split' / 他→'text'」に変更
+- action ハンドラ（HIGHLIGHT_MOVE / GO_BACK）は変更不要（共通のまま）
+
+### 4. render-screens.ts: preview の split 対応
+
+- gourmetNearby ノードを design-mock.html の構造（.nb-head / .nb-body / .nb-list / .nb-detail / .nb-name、NAME 省略、TEL 行）に合わせて HTML 化
+- buildHtml() の CSS に design-mock.html の nb-* スタイルを追従（design-mock.html には一切書き込まない）
+
+### 5. 検証 + リリース準備
+
+- bun run typecheck / biome check エラー0
+- `bun run preview:screens` → index.html がモックと構造一致（グルメ近隣をモックと並べて目視）
+- シミュレーターで /gourmet → /gourmet/nearby の text↔split モード切替、↕で左ハイライト移動と右ペイン更新、ダブルタップで戻る、を確認（everything-evenhub:test-with-simulator / simulator-automation スキル使用）
+- app.json version=0.1.7 へ bump、`bun run build` 成功、hisho.ehpk 生成。実機確認はユーザー実施
+
+## 制約
+
+- app/preview/design-mock.html は保護ファイル（読み取り専用 chmod 444、変更禁止）
+- グラス表示は実機 line height 27px・最大10行・576×288px。split の headerHeight はステータスバー+タイトルの2行分で固定し、選択移動が updateSplitPage の軽量更新で済むようにする
+- コード作業前に andrej-karpathy-skills:karpathy-guidelines スキルを呼ぶこと
+- モックの架空デモ店舗・架空 TEL を shops.ts に持ち込まない
+
+### Tasks
+
+- [ ] **Task 1**: shared.ts に truncateByPixel ユーティリティ追加（pretext getTextWidth・「…」付与・超過しない側に丸め） [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
+- [ ] **Task 2**: shops.ts の Shop 型に `tel?: string` 追加（データ追記は判明分のみ任意・架空番号禁止） [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
+- [ ] **Task 3**: gourmet-nearby split 化 — split ビルダー（header/左リスト/右詳細）+ selectors.ts に toSplit + AppGlasses.tsx の toSplit / getPageMode 配線（同一タスクで完結させること。getPageMode だけ先行すると text に静かにフォールバックする） [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
+- [ ] **Task 4**: render-screens.ts の split 対応 — gourmetNearby を nb-* 構造で index.html に出力、CSS をモックに追従 [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
+- [ ] **Task 5**: 検証 + v0.1.7 bump + build + pack — typecheck/biome 0、preview 目視一致、シミュレーターで split 遷移・選択更新確認 [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
+
+依存: Task 3 ← Task 1, 2 / Task 4 ← Task 3 / Task 5 ← Task 1〜4
+
+### Notes
+
+- Created via: harness-plan create（サブエージェント検証付き）
+- Created at: 2026-06-08
+- デザイン確定の経緯: 2026-06-08 セッションでモック3案（左右分割 → 店名省略幅拡大 → TEL 追加）をスクリーンショット検証しユーザー承認済み
