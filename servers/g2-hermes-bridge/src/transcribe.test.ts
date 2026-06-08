@@ -220,4 +220,22 @@ describe('POST /v1/transcribe 異常系', () => {
     expect(res.statusCode).toBe(400)
     await app.close()
   })
+
+  test('audio/wav 以外の Content-Type は 415（400 empty audio に化けさせない）', async () => {
+    const app = makeApp(okFetch())
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/transcribe',
+      headers: {
+        authorization: `Bearer ${TOKEN}`,
+        'content-type': 'application/json',
+      },
+      payload: { not: 'wav' },
+    })
+    expect(res.statusCode).toBe(415)
+    expect((res.json() as { error: string }).error).toBe(
+      'unsupported_media_type',
+    )
+    await app.close()
+  })
 })

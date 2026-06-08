@@ -112,6 +112,19 @@ export function buildServer(deps: BuildServerDeps) {
   // 音声 WAV を受け取り STT サイドカーへ転送して文字起こしを返す（仕様書 §4.2）。
   // size 上限超過は parser の bodyLimit が 413、サイドカー不達は 502、timeout は 504。
   app.post('/v1/transcribe', async (req, reply) => {
+    // Content-Type を明示検証する（仕様書 §4.2）。audio/wav 以外（既定 parser が効く
+    // application/json 等）が body 欠落の 400 に化けるのを防ぎ、415 で明確に弾く。
+    const mediaType = (req.headers['content-type'] ?? '')
+      .split(';')[0]
+      ?.trim()
+      .toLowerCase()
+    if (mediaType !== 'audio/wav') {
+      return reply.code(415).send({
+        ok: false,
+        error: 'unsupported_media_type',
+        detail: 'Content-Type must be audio/wav',
+      })
+    }
     const body = req.body
     if (!Buffer.isBuffer(body) || body.length === 0) {
       return reply
