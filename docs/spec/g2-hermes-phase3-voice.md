@@ -155,11 +155,30 @@ answer    … paginateForG2 でページ表示（Next / ダブルタップで戻
 
 ## 9. 未確認・実装前/実機で確定する点
 
-- [ ] even-toolkit/stt の **buffer API の正確な関数名**（`createAudioBuffer` / `append` / `getAll` / `getWav` 等）を `even-toolkit/stt` の `audio/buffer.ts`・`audio/pcm-utils.ts` で実装直前に確認（本書は I/F レベルで記述）。
+- [x] even-toolkit/stt の **buffer API の正確な関数名**（`createAudioBuffer` / `append` / `getAll` / `getWav` 等）を確認（**Task 3.3.1・2026-06-09 確定**。実体は §9.1 に記録）。
 - [ ] `float32ToWav` の出力 WAV を **mlx-whisper がそのまま読めるか**（16kHz mono PCM WAV）。読めない場合はサイドカー側で soundfile/ffmpeg 経由ロード。
 - [ ] サイドカーのモデルロード時間と1発話あたりの**実文字起こしレイテンシ**を実測（Bridge タイムアウト値の根拠に）。
 - [ ] 実機 WebView の `audioEvent.audioPcm` が**実際に届くか**（Phase 1 同様、まず origin/イベント実値をログ採取）。シミュレーターは Mac マイク代替。
 - [ ] `g2-microphone` permission 付与時の Hub/サイドロードでの**マイク許可フロー**（GPS 権限がサイドロード不可だった件＝memory `reference_hub_dev_mode` の二の舞にならないか要確認）。
+
+### 9.1 even-toolkit/stt export 実体（Task 3.3.1・2026-06-09 確定）
+
+even-toolkit **v1.7.2** の `dist/stt/*.d.ts` を直接読み取り、`package.json` の `exports` マップで `even-toolkit/stt` サブパスが解決することを確認した（`node_modules/.bun/even-toolkit@1.7.2.../dist/stt/index.js`）。3.3.2 の音声キャプチャはこの実シグネチャ前提で実装する。**自前 WAV エンコーダは不要**（`float32ToWav` / `createAudioBuffer().getWav()` が実在）。
+
+| export | 種別 | 正確な signature | 備考 |
+|---|---|---|---|
+| `GlassBridgeSource` | **class**（`new` で生成） | `new GlassBridgeSource()`（引数なし）／ `start(): Promise<void>` ・ `stop(): void` ・ `onAudioData(cb: (pcm: Float32Array, sampleRate: number) => void): () => void`（戻り値は unsubscribe 関数）・ `dispose(): void` | `AudioSource` を実装。`window.__evenBridge` を自動検出。`start()` 内で `audioControl(true)` を await、`stop()` で `audioControl(false)`。PCM は内部で Uint8Array(16bit LE)→Float32 変換済み。`sampleRate` は glass-bridge では常に **16000** |
+| `createAudioBuffer` | **factory 関数** | `createAudioBuffer(config?: { maxSeconds?: number; sampleRate?: number }): { append(chunk: Float32Array): void; getAll(): Float32Array; getWav(): Blob; clear(): void; duration(): number }` | Float32 チャンクを蓄積。`getWav()` は内部 sampleRate で **WAV Blob** を返す |
+| `float32ToWav` | 関数 | `float32ToWav(data: Float32Array, sampleRate: number): Blob` | **戻り値は `Blob`**（ArrayBuffer/Uint8Array ではない）。`even-toolkit/stt`（`./audio/pcm-utils`）から re-export |
+
+補助 export（同じ `even-toolkit/stt` から）: `uint8ToPcm16(Uint8Array): Int16Array` / `pcm16ToFloat32(Int16Array): Float32Array` / `float32ToPcm16(Float32Array): Int16Array`。
+
+**実装上の含意（3.3.2 向け）**:
+- WAV 出力は **`Blob`**。`fetch` の `body` には Blob を直接渡せるが、`Content-Type: audio/wav` は **明示ヘッダで付与**する（Blob の `type` が空のため）。あるいは `await blob.arrayBuffer()` で `ArrayBuffer` 化して送る。
+- spec §4.4 step3 の `float32ToWav(buffer.getAll(), 16000)` と `createAudioBuffer({ sampleRate: 16000 }).getWav()` は等価に使える。`maxSeconds: 30`（D3 の録音上限）は `createAudioBuffer` 側で管理可能。
+- 3.0 実機 probe で確定した PCM 形式（16kHz / mono / s16le・100ms チャンク）は `GlassBridgeSource` の出力（Float32 / 16000Hz）と整合。
+
+> 注: `GlassBridgeSource` / index モジュールは import 時に `window` を参照するため Node/bun 直 import は `window is not defined` で落ちる（= **WebView 専用**・解決自体は成功）。サーバー側（Bridge）はこのモジュールに依存しない。
 
 ## 10. 参照（読み取り照合の根拠）
 
