@@ -29,7 +29,7 @@ bun install           # 依存解決（リポジトリ root で実行）
 
 | route | 認証 | 内容 |
 |-------|------|------|
-| `GET /health` | 不要 | `{ ok, version, hermes }`。`hermes` は到達性（reachable/unreachable/timeout/error:NNN） |
+| `GET /health` | 不要 | `{ ok, version, hermes, stt }`。`hermes`/`stt` は各到達性（reachable/unreachable/timeout/error:NNN）。両者は並行確認で独立 |
 | `POST /v1/ask` | Bearer 必須 | `{ sessionId, text, mode? }` を Hermes へ中継し `{ ok, sessionId, responseId, text, pages, audioUrl }` を返す |
 | `OPTIONS *` | 不要 | CORS preflight（@fastify/cors が応答。認証はスキップ） |
 

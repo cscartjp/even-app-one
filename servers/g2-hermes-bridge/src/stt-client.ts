@@ -59,6 +59,26 @@ export async function transcribeAudio(
   }
 }
 
+/** STT サイドカーの到達性を確認する（/health 用）。例外を投げず文字列で状態を返す。 */
+export async function checkStt(
+  deps: SttDeps,
+): Promise<'reachable' | 'unreachable' | 'timeout' | `error:${number}`> {
+  const { config } = deps
+  const fetchImpl = deps.fetchImpl ?? fetch
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), config.sttTimeoutMs)
+  try {
+    const res = await fetchImpl(`${config.sttBaseUrl}/health`, {
+      signal: controller.signal,
+    })
+    return res.ok ? 'reachable' : `error:${res.status}`
+  } catch {
+    return controller.signal.aborted ? 'timeout' : 'unreachable'
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }

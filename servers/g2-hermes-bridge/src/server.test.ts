@@ -263,4 +263,30 @@ describe('GET /health', () => {
     expect((res.json() as { hermes: string }).hermes).toBe('unreachable')
     await app.close()
   })
+
+  test('STT 到達時は stt=reachable', async () => {
+    const fetchImpl = (async () =>
+      new Response('{}', { status: 200 })) as unknown as typeof fetch
+    const app = makeApp(fetchImpl)
+    const res = await app.inject({ method: 'GET', url: '/health' })
+    expect(res.statusCode).toBe(200)
+    expect((res.json() as { stt: string }).stt).toBe('reachable')
+    await app.close()
+  })
+
+  test('STT 不達時は stt=unreachable（hermes 到達とは独立）', async () => {
+    // STT(/health) だけ ECONNREFUSED、Hermes(/models) は 200。
+    // hermes と stt が独立に判定されることを確認する。
+    const fetchImpl = (async (url: string | URL) => {
+      if (String(url).endsWith('/health')) throw new Error('ECONNREFUSED')
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const app = makeApp(fetchImpl)
+    const res = await app.inject({ method: 'GET', url: '/health' })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as { hermes: string; stt: string }
+    expect(body.hermes).toBe('reachable')
+    expect(body.stt).toBe('unreachable')
+    await app.close()
+  })
 })
