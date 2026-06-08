@@ -179,11 +179,13 @@ Next Step: Use harness_workflow_work to start implementation
 
 ### Tasks
 
-- [ ] **Task 1**: shared.ts に truncateByPixel ユーティリティ追加（pretext getTextWidth・「…」付与・超過しない側に丸め） [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
-- [ ] **Task 2**: shops.ts の Shop 型に `tel?: string` 追加（データ追記は判明分のみ任意・架空番号禁止） [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
-- [ ] **Task 3**: gourmet-nearby split 化 — split ビルダー（header/左リスト/右詳細）+ selectors.ts に toSplit + AppGlasses.tsx の toSplit / getPageMode 配線（同一タスクで完結させること。getPageMode だけ先行すると text に静かにフォールバックする） [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
-- [ ] **Task 4**: render-screens.ts の split 対応 — gourmetNearby を nb-* 構造で index.html に出力、CSS をモックに追従 [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
-- [ ] **Task 5**: 検証 + v0.1.7 bump + build + pack — typecheck/biome 0、preview 目視一致、シミュレーターで split 遷移・選択更新確認 [tdd:skip:no-test-framework-detected] <!-- cc:TODO -->
+- [x] **Task 1**: shared.ts に truncateByPixel ユーティリティ追加（pretext getTextWidth・「…」付与・超過しない側に丸め） [tdd:skip:no-test-framework-detected] <!-- cc:done [565487f] -->
+- [x] **Task 2**: shops.ts の Shop 型に `tel?: string` 追加（データ追記は判明分のみ任意・架空番号禁止） [tdd:skip:no-test-framework-detected] <!-- cc:done [fd773c5] -->
+- [x] **Task 3**: gourmet-nearby split 化 — split ビルダー（header/左リスト/右詳細）+ selectors.ts に toSplit + AppGlasses.tsx の toSplit / getPageMode 配線（同一タスクで完結させること。getPageMode だけ先行すると text に静かにフォールバックする） [tdd:skip:no-test-framework-detected] <!-- cc:done [ce4d213] -->
+- [x] **Task 4**: render-screens.ts の split 対応 — gourmetNearby を nb-* 構造で index.html に出力、CSS をモックに追従 [tdd:skip:no-test-framework-detected] <!-- cc:done [072002e] -->
+- [x] **Task 5**: 検証 + v0.1.7 bump + build + pack — typecheck/biome 0、preview 目視一致、シミュレーターで split 遷移・選択更新確認 [tdd:skip:no-test-framework-detected] <!-- cc:done [1952829] -->
+
+> Task 5 検証メモ (2026-06-08): シミュレーターで /gourmet → /gourmet/nearby の text→split 切替、↕で左ハイライト移動 + カウント(N/M) + 右ペイン詳細の連動更新、ダブルタップで /gourmet（text）復帰を確認。truncateByPixel は bun 実行でラーメン16件リストの全行が leftWidth 317px 以内（最長282px）・距離欠けなしを確認。実機確認はユーザー実施。
 
 依存: Task 3 ← Task 1, 2 / Task 4 ← Task 3 / Task 5 ← Task 1〜4
 
