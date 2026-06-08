@@ -1,16 +1,14 @@
 import { useGlasses } from 'even-toolkit/useGlasses'
-import { useCallback, useMemo, useRef, useState } from 'react'
-import { askBridge } from '../api/bridgeClient'
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
+import { askBridge, transcribe } from '../api/bridgeClient'
+import { encodeWav, isTooShort } from '../audio/capture'
 import { requestExit } from '../even/bridge'
-import {
-  type MicProbeHandle,
-  type MicProbeStats,
-  startMicProbe,
-} from '../even/mic-probe'
+import { type LifecycleHandle, watchLifecycle } from '../even/lifecycle'
+import { type MicSession, startMicCapture } from '../even/mic-source'
+import { initialState, reduce } from './reducer'
 import {
   type Ctx,
   hermesScreen,
-  type Phase,
   type PresetQuestion,
   type Snapshot,
 } from './screen'
@@ -18,8 +16,7 @@ import {
 /** 会話セッション。固定 ID にすると Bridge 側で会話が継続する。 */
 const SESSION_ID = 'g2-main'
 
-// Phase 1 はグラスで固定プリセットから質問を選ぶ（キーボード無し）。
-// スマホ側テキスト入力は仕様書 §18 step2 で前倒し可能。
+// idle の音声入力に加え、フォールバックとしてプリセット質問を併存させる（spec §4.5）。
 const PRESETS: PresetQuestion[] = [
   { label: '自己紹介', text: '短く自己紹介して' },
   { label: '今できること', text: 'あなたが今できることを3つ、短く教えて' },
@@ -28,121 +25,204 @@ const PRESETS: PresetQuestion[] = [
 ]
 
 /**
- * グラス表示のブリッジ。React state（phase/pages/...）を snapshot にまとめ useGlasses へ渡す。
- * useGlasses は 100ms ポーリングで snapshot の参照変化を検知して再描画するため、
- * state を更新すれば idle→Thinking→回答ページの遷移がそのままグラスに反映される。
+ * グラス表示のブリッジ。状態は reducer（screen.ts と共有の State）が正本で、
+ * マイク開閉・文字起こし・Hermes 問い合わせの副作用を AppGlasses が実行する。
+ * useGlasses が 100ms ポーリングで snapshot 参照の変化を検知して再描画するため、
+ * dispatch で state が変わればグラス表示も追従する。
  */
 export function AppGlasses() {
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [pages, setPages] = useState<string[]>([])
-  const [pageIndex, setPageIndex] = useState(0)
-  const [askingLabel, setAskingLabel] = useState<string | null>(null)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  // Task 3.0 マイク診断の live 結果（probe phase 中のみ非 null）
-  const [probeStats, setProbeStats] = useState<MicProbeStats | null>(null)
+  const [state, dispatch] = useReducer(reduce, initialState)
 
-  // ページ送りは setState の関数更新内で最新の pages 長が要るので ref で参照する
-  const pagesRef = useRef(pages)
-  pagesRef.current = pages
-  // 起動中のマイク probe ハンドル（停止対象）
-  const probeHandleRef = useRef<MicProbeHandle | null>(null)
-  // probe の世代トークン。back()/再 probe() で +1 し、古い probe の onUpdate が
-  // 新しい probe 画面に stats を混ぜないようにする（Copilot 指摘）。
-  const probeTokenRef = useRef(0)
-  // マイクは global（audioControl は端末 1 つの toggle）なので、起動/停止を 1 本の
-  // promise chain で直列化する。これをしないと、起動待ち中に再操作したとき古い probe の
-  // 停止 audioControl(false) が新しい probe のマイクを閉じ、gating が false negative に
-  // なり得る（Codex 指摘）。chain で順序を固定すれば mic on/off が交錯しない。
+  // 最新 state を ref で参照する（lifecycle / 非同期コールバックの stale クロージャ回避）。
+  const stateRef = useRef(state)
+  stateRef.current = state
+
+  // マイクは端末 1 つの toggle なので、起動/停止を 1 本の promise chain で直列化する
+  // （交錯すると古い停止が新しい録音のマイクを閉じる。probe 実装から踏襲）。
   const micChainRef = useRef<Promise<void>>(Promise.resolve())
   const enqueueMic = useCallback((task: () => Promise<void>) => {
     const next = micChainRef.current.then(task, task)
     micChainRef.current = next.catch(() => {})
     return next
   }, [])
-  // 既存 probe を直列に停止する（mic off）
-  const stopProbe = useCallback(
+  const micSessionRef = useRef<MicSession | null>(null)
+  // 世代トークン。BACK/録り直し/新規送信のたびに +1 し、古い録音/文字起こし/問い合わせの
+  // 結果が新しい画面に紛れ込むのを防ぐ。
+  const genRef = useRef(0)
+  // 30s 自動停止から最新の停止処理を呼ぶための間接参照（startMic↔handleStop の循環回避）。
+  const handleStopRef = useRef<() => void>(() => {})
+  // 録音中フラグ（同期）。タップ停止と 30s 自動停止が同時に来ても停止処理を1回に絞る
+  // （二重停止だと後発が空サンプルを掴み録音をやり直してしまう）。
+  const recordingActiveRef = useRef(false)
+
+  // マイクを開く（直列）。bridge 不在/権限拒否なら error へ倒す。
+  const startMic = useCallback(
     () =>
       enqueueMic(async () => {
-        const handle = probeHandleRef.current
-        probeHandleRef.current = null
-        if (handle) await handle.stop()
+        const prev = micSessionRef.current
+        micSessionRef.current = null
+        if (prev) await prev.stop()
+        try {
+          micSessionRef.current = await startMicCapture({
+            onMaxDuration: () => handleStopRef.current(),
+          })
+        } catch {
+          dispatch({ type: 'FAIL', error: 'マイクを使えません' })
+        }
       }),
     [enqueueMic],
   )
 
-  const ask = useCallback(async (q: PresetQuestion) => {
-    setAskingLabel(q.label)
-    setErrorMsg(null)
-    setPhase('thinking')
-    const outcome = await askBridge(SESSION_ID, q.text, 'short')
+  // マイクを閉じ（直列）、録音した全サンプルを返す。
+  const stopMic = useCallback(async () => {
+    let samples: Float32Array = new Float32Array(0)
+    await enqueueMic(async () => {
+      const s = micSessionRef.current
+      micSessionRef.current = null
+      if (s) samples = await s.stop()
+    })
+    return samples
+  }, [enqueueMic])
+
+  // Hermes へ問い合わせる（プリセット質問・音声送信の共通処理）。
+  const runAsk = useCallback(async (label: string, text: string) => {
+    const gen = ++genRef.current
+    dispatch({ type: 'ASK', label })
+    const outcome = await askBridge(SESSION_ID, text, 'short')
+    if (gen !== genRef.current) return
     if (outcome.ok) {
-      const { pages: resPages, text } = outcome.result
-      // pages 優先、無ければ text、どちらも空なら空ページにしない
+      const { pages, text: ans } = outcome.result
       const next =
-        resPages.length > 0 ? resPages : text ? [text] : ['(回答がありません)']
-      setPages(next)
-      setPageIndex(0)
-      setPhase('answer')
+        pages.length > 0 ? pages : ans ? [ans] : ['(回答がありません)']
+      dispatch({ type: 'ANSWERED', pages: next })
     } else {
-      setErrorMsg(outcome.error)
-      setPhase('error')
+      dispatch({ type: 'FAIL', error: outcome.error })
     }
   }, [])
 
-  const nextPage = useCallback(() => {
-    const n = pagesRef.current.length
-    if (n > 0) setPageIndex((i) => (i + 1) % n)
-  }, [])
-  const prevPage = useCallback(() => {
-    const n = pagesRef.current.length
-    if (n > 0) setPageIndex((i) => (i - 1 + n) % n)
-  }, [])
+  // 録音停止 → 空/極短を弾く → 文字起こし → review（tap と 30s 自動停止の両方から呼ぶ）。
+  const handleStop = useCallback(async () => {
+    // 二重停止ガード（同期）。最初の1回だけが録音を消費する。
+    if (!recordingActiveRef.current) return
+    recordingActiveRef.current = false
+    const gen = genRef.current
+    const samples = await stopMic()
+    if (gen !== genRef.current) return
+    if (isTooShort(samples)) {
+      dispatch({ type: 'REC_TOO_SHORT' })
+      recordingActiveRef.current = true
+      startMic()
+      return
+    }
+    dispatch({ type: 'STOP_RECORDING' })
+    const outcome = await transcribe(encodeWav(samples))
+    if (gen !== genRef.current) return
+    if (!outcome.ok) {
+      dispatch({ type: 'FAIL', error: outcome.error })
+      return
+    }
+    const text = outcome.result.text.trim()
+    if (!text) {
+      // 無音などで空テキストなら録り直しへ
+      dispatch({ type: 'REC_TOO_SHORT' })
+      recordingActiveRef.current = true
+      startMic()
+      return
+    }
+    dispatch({ type: 'TRANSCRIBED', text })
+  }, [stopMic, startMic])
+  handleStopRef.current = () => {
+    void handleStop()
+  }
+
+  // 録音開始（idle からの開始 / review からの録り直しで共用）。
+  const beginRecording = useCallback(() => {
+    genRef.current += 1
+    recordingActiveRef.current = true
+    dispatch({ type: 'START_RECORDING' })
+    startMic()
+  }, [startMic])
+
+  // 録音/文字起こし/回答からの中止・戻る（マイクを閉じて idle へ）。
   const back = useCallback(() => {
-    // 古い probe の onUpdate を無効化してから（token++）、直列 chain でマイクを閉じる
-    probeTokenRef.current += 1
-    void stopProbe()
-    setProbeStats(null)
-    setPages([])
-    setPageIndex(0)
-    setAskingLabel(null)
-    setErrorMsg(null)
-    setPhase('idle')
-  }, [stopProbe])
+    genRef.current += 1
+    recordingActiveRef.current = false
+    void stopMic()
+    dispatch({ type: 'BACK' })
+  }, [stopMic])
+
+  const ask = useCallback(
+    (q: PresetQuestion) => {
+      void runAsk(q.label, q.text)
+    },
+    [runAsk],
+  )
+  const stopRecording = useCallback(() => {
+    void handleStop()
+  }, [handleStop])
+  const send = useCallback(() => {
+    const t = stateRef.current.transcript ?? ''
+    if (t.trim()) void runAsk(t, t)
+  }, [runAsk])
+  const nextPage = useCallback(() => dispatch({ type: 'NEXT_PAGE' }), [])
+  const prevPage = useCallback(() => dispatch({ type: 'PREV_PAGE' }), [])
   const exit = useCallback(() => {
     void requestExit()
   }, [])
 
-  // Task 3.0 gating spike: マイク診断を開始する（暫定）
-  const probe = useCallback(() => {
-    const token = ++probeTokenRef.current
-    setProbeStats(null)
-    setPhase('probe')
-    void enqueueMic(async () => {
-      // 念のため既存 probe を閉じてから開始（重なり防止）
-      const prev = probeHandleRef.current
-      probeHandleRef.current = null
-      if (prev) await prev.stop()
-      // この probe が最新世代のときだけ stats を反映（古い世代の混入を防ぐ）
-      probeHandleRef.current = await startMicProbe((stats) => {
-        if (token === probeTokenRef.current) setProbeStats(stats)
-      })
+  // 前面/背面でのマイク制御（spec §4.5 / DoD）。
+  // 背面化したら録音を中止し idle へ戻す（マイクを閉じる）。背面中の録音バッファは保持できず、
+  // そのまま復帰すると「背面後に録れた分だけ」を黙って送る部分欠落になり得るため、
+  // バッファを引きずらず明示キャンセルする（安全側・Copilot 指摘）。
+  // 復帰（前面）時は idle に戻っているので何もしない（再録音はユーザーのタップで開始）。
+  useEffect(() => {
+    let handle: LifecycleHandle | null = null
+    let disposed = false
+    void watchLifecycle({
+      onBackground: () => {
+        if (stateRef.current.phase === 'recording') back()
+      },
+      onForeground: () => {},
+    }).then((h) => {
+      if (disposed) h.stop()
+      else handle = h
     })
-  }, [enqueueMic])
+    return () => {
+      disposed = true
+      handle?.stop()
+      // アンマウント時（終了等）も必ずマイクを閉じる
+      void stopMic()
+    }
+  }, [back, stopMic])
 
-  const ctxRef = useRef<Ctx>({ ask, probe, nextPage, prevPage, back, exit })
-  ctxRef.current = { ask, probe, nextPage, prevPage, back, exit }
-
-  // 毎レンダーで新しい snapshot を作り ref に格納する（参照変化＝再描画トリガ）
-  const snapshotRef = useMemo(() => ({ current: null as Snapshot | null }), [])
-  snapshotRef.current = {
-    phase,
-    presets: PRESETS,
-    askingLabel,
-    pages,
-    pageIndex,
-    errorMsg,
-    probeStats,
+  const ctxRef = useRef<Ctx>({
+    ask,
+    startRecording: beginRecording,
+    stopRecording,
+    cancelRecording: back,
+    send,
+    retake: beginRecording,
+    nextPage,
+    prevPage,
+    back,
+    exit,
+  })
+  ctxRef.current = {
+    ask,
+    startRecording: beginRecording,
+    stopRecording,
+    cancelRecording: back,
+    send,
+    retake: beginRecording,
+    nextPage,
+    prevPage,
+    back,
+    exit,
   }
+
+  // 毎レンダーで新しい snapshot を作り ref に格納する（参照変化＝再描画トリガ）。
+  const snapshotRef = useMemo(() => ({ current: null as Snapshot | null }), [])
+  snapshotRef.current = { ...state, presets: PRESETS }
 
   const getSnapshot = useCallback(
     // biome-ignore lint/style/noNonNullAssertion: 直前のレンダーで必ず代入済み

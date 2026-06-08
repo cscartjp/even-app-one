@@ -18,6 +18,12 @@ if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
 /** クライアント側タイムアウト。Bridge 自身も Hermes へ別途タイムアウトを張る。 */
 const TIMEOUT_MS = 20_000
 
+/**
+ * 文字起こしのクライアント側タイムアウト。Bridge→STT は既定 60s なので、
+ * それを上回る値にして「Bridge は待っているのに client が先に切れる」を防ぐ（spec §4.2）。
+ */
+const TRANSCRIBE_TIMEOUT_MS = 70_000
+
 /** `/v1/ask` の正常レスポンス（Bridge の AskResult と同形）。 */
 export interface AskResult {
   ok: true
@@ -96,4 +102,71 @@ function isAskResult(v: unknown): v is AskResult {
     Array.isArray(o.pages) &&
     o.pages.every((p) => typeof p === 'string')
   )
+}
+
+/** `/v1/transcribe` の正常レスポンス（Bridge の TranscribeResult と同形）。 */
+export interface TranscribeResult {
+  ok: true
+  text: string
+  ms: number
+}
+
+/** 文字起こしの結果。失敗はグラスに出す短いメッセージへ畳む（throw しない）。 */
+export type TranscribeOutcome =
+  | { ok: true; result: TranscribeResult }
+  | { ok: false; error: string }
+
+/**
+ * 録音 WAV（audio/wav Blob）を Bridge の `/v1/transcribe` に送り、文字起こし結果を受け取る。
+ * Blob 自体に `audio/wav` type が付くが、spec §9.1 に従いヘッダでも明示する。
+ * askBridge と同じく失敗は throw せず短いメッセージへ畳む。
+ */
+export async function transcribe(wav: Blob): Promise<TranscribeOutcome> {
+  if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
+    return { ok: false, error: 'Bridge 未設定（.env を確認）' }
+  }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS)
+  try {
+    const res = await fetch(`${BRIDGE_BASE}/v1/transcribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/wav',
+        Authorization: `Bearer ${BRIDGE_TOKEN}`,
+      },
+      body: wav,
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      return { ok: false, error: `文字起こしエラー (${res.status})` }
+    }
+    const body = await res.text()
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(body)
+    } catch {
+      return { ok: false, error: '応答の解析に失敗' }
+    }
+    if (!isTranscribeResult(parsed)) {
+      return { ok: false, error: '応答が不正な形式' }
+    }
+    return { ok: true, result: parsed }
+  } catch {
+    return {
+      ok: false,
+      error: controller.signal.aborted ? 'タイムアウト' : '接続できません',
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Bridge 応答が TranscribeResult の形か検証する。`ok===true` まで見て、200 でも
+ * `ok:false` のエラー形を成功扱いしないようにする（CodeRabbit 指摘・契約に整合）。
+ */
+function isTranscribeResult(v: unknown): v is TranscribeResult {
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as Record<string, unknown>
+  return o.ok === true && typeof o.text === 'string' && typeof o.ms === 'number'
 }
