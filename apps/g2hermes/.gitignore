@@ -1,0 +1,26 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+*.ehpk
+
+# tsc -b artifacts (tsconfig.node.json composite build)
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
+# Environment（実値。.env は追跡しない）
+.env
+.env.*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.sw?
