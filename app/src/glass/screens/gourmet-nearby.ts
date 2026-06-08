@@ -46,8 +46,11 @@ const SPLIT_MAX_VISIBLE = 7
  * モックの .nb-list border-right を中央の細いペインで再現する。
  * split のコンテナ枠線は even-toolkit が強制的に消すため、独立ペインに
  * テキストの縦線を描く方式にする（スペース埋めだとフォント幅誤差で折り返すため）。
+ * 中央 36px = paddingLength 6×2(=12) + '│' 20px + 余裕。raw split は各 pane に
+ * paddingLength:6 を付けるため、これ未満だと実機で '│' がクリップされる。
+ * 左 300px は最長行(282px)+padding(12) を満たす。右は残りの 240px。
  */
-const SPLIT_PANE_WIDTHS = [300, 12, 264]
+const SPLIT_PANE_WIDTHS = [300, 36, 240]
 /** 左リストで店名に割ける最大幅。左ペイン 300px 内に cursor+マーク+距離込みで収める */
 const NAME_MAX_PX = getTextWidth('あ') * 9
 /** 縦区切り線ペインの中身（下部領域の行数ぶん '│' を縦に並べる） */
