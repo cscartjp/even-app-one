@@ -13,6 +13,10 @@ import { createScreenMapper } from 'even-toolkit/glass-router'
 import type { DisplayLine, GlassAction } from 'even-toolkit/types'
 import { defaultOrigin, defaultOriginLabel } from '../src/data/shops'
 import { stations } from '../src/data/stations'
+import {
+  gourmetNearbyView,
+  type NearbyView,
+} from '../src/glass/screens/gourmet-nearby'
 import { onGlassAction, toDisplayData } from '../src/glass/selectors'
 import type { AppSnapshot } from '../src/glass/shared'
 
@@ -130,7 +134,11 @@ function apply(s: State, action: GlassAction): State {
   return { path, hi, genre, station }
 }
 
-interface Node {
+/**
+ * gourmetNearby のみ split 表示用の NearbyView（title/count/list/sel/detail）を
+ * フラットに持つ（design-mock.html の JSON 構造と同形）。他画面は lines のみ。
+ */
+interface Node extends Partial<NearbyView> {
   id: string
   screen: string
   lines: DisplayLine[]
@@ -155,11 +163,22 @@ while (queue.length) {
       queue.push(ns)
     }
   }
+  const screen = deriveScreen(s.path)
+  // gourmetNearby は split 表示: lines の代わりに NearbyView をフラット展開。
+  // 0件（view が null）は従来どおり text の lines にフォールバック
+  const view =
+    screen === 'gourmetNearby'
+      ? gourmetNearbyView(snapshot(s.genre, s.station), {
+          screen,
+          highlightedIndex: s.hi,
+        })
+      : null
   nodes.set(id(s), {
     id: id(s),
-    screen: deriveScreen(s.path),
-    lines: render(s),
+    screen,
+    lines: view ? [] : render(s),
     trans,
+    ...(view ?? {}),
   })
 }
 
@@ -242,6 +261,15 @@ function buildHtml(json: string): string {
   .row.sep{ color:#1f5a2a; text-shadow:none; }
   .row.hot{ color:#04140a; background:var(--g); border-radius:4px;
     text-shadow:none; font-weight:600; padding:0 4px; margin:0 -4px; }
+
+  /* グルメ（近い順）: 左右分割（左=店舗リスト / 右=選択店舗の詳細） */
+  .nb-head{ display:flex; justify-content:space-between; border-bottom:1px solid #1f5a2a; }
+  .nb-head .count{ color:var(--g-dim); text-shadow:none; }
+  .nb-body{ flex:1; min-height:0; display:flex; }
+  .nb-list{ width:55%; border-right:1px solid #1f5a2a; padding:2px 8px 0 0; }
+  .nb-detail{ flex:1; min-width:0; padding:2px 0 0 12px; }
+  .nb-detail .nb-name{ color:var(--g-hot); white-space:normal; height:auto;
+    max-height:57.6px; overflow:hidden; word-break:break-all; }
 
   /* 起動（スプラッシュ）画面 */
   .splash{ position:relative; z-index:1; height:100%; display:flex;
@@ -328,6 +356,10 @@ function buildHtml(json: string): string {
         '</div>';
       return;
     }
+    if(node.screen === 'gourmetNearby' && node.list){
+      renderNearby(node, screen);
+      return;
+    }
     screen.innerHTML = '';
     const rows = document.createElement('div');
     rows.className = 'rows';
@@ -339,6 +371,72 @@ function buildHtml(json: string): string {
       rows.appendChild(div);
     }
     screen.appendChild(rows);
+  }
+  // 表示幅（全角=2, 半角=1）でカウントし、超過分は「…」で省略する
+  function dispW(s){ let w=0; for(const ch of s) w += ch.codePointAt(0)>0xff ? 2 : 1; return w; }
+  function truncW(s, max){
+    if(dispW(s) <= max) return s;
+    let w=0, out='';
+    for(const ch of s){
+      const cw = ch.codePointAt(0)>0xff ? 2 : 1;
+      if(w + cw > max - 1) break;
+      out += ch; w += cw;
+    }
+    return out + '…';
+  }
+  // グルメ（近い順）: 左=店舗リスト / 右=選択店舗の詳細。選択移動で右ペインのみ更新。
+  // 長い店名は左で省略し、右ペイン1行目に正式名称をフル表示（最大2行折返し）。
+  const NAME_W = 18; // 左リストで店名に割ける表示幅（全角9文字相当）
+  function renderNearby(node, screen){
+    screen.innerHTML = '';
+    const root = document.createElement('div');
+    root.className = 'rows';
+    const head = document.createElement('div');
+    head.className = 'row nb-head';
+    const title = document.createElement('span');
+    title.textContent = PREFIX + node.title;
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = node.count;
+    head.append(title, count);
+    root.appendChild(head);
+    const body = document.createElement('div');
+    body.className = 'nb-body';
+    const list = document.createElement('div');
+    list.className = 'nb-list';
+    node.list.forEach((s, i) => {
+      const div = document.createElement('div');
+      div.className = 'row' + (i === node.sel ? ' hot' : '');
+      div.textContent = (i === node.sel ? '▶ ' : PREFIX) +
+        s.mark + ' ' + truncW(s.name, NAME_W) + ' ' + s.dist;
+      list.appendChild(div);
+    });
+    const detail = document.createElement('div');
+    detail.className = 'nb-detail';
+    // 1行目=正式名称(最明・最大2行)、2行目=営業状況(明)、以降=補足(暗)
+    const name = document.createElement('div');
+    name.className = 'row nb-name';
+    name.textContent = node.detail.name;
+    detail.appendChild(name);
+    const status = document.createElement('div');
+    status.className = 'row';
+    status.textContent = node.detail.status;
+    detail.appendChild(status);
+    if(node.detail.tel){
+      const tel = document.createElement('div');
+      tel.className = 'row dim';
+      tel.textContent = 'TEL ' + node.detail.tel;
+      detail.appendChild(tel);
+    }
+    node.detail.notes.forEach(text => {
+      const div = document.createElement('div');
+      div.className = 'row dim';
+      div.textContent = text;
+      detail.appendChild(div);
+    });
+    body.append(list, detail);
+    root.appendChild(body);
+    screen.appendChild(root);
   }
   function go(key){
     const node = DATA.nodes[cur];
