@@ -13,10 +13,12 @@ MODEL = "whisper-large-v3-mlx"
 
 
 @contextmanager
-def running_server(*, loaded, recognizer):
+def running_server(*, loaded, recognizer, max_body=8 * 1024 * 1024):
     state = ModelState()
     state.loaded = loaded
-    server = SttServer(("127.0.0.1", 0), recognizer=recognizer, state=state, model=MODEL)
+    server = SttServer(
+        ("127.0.0.1", 0), recognizer=recognizer, state=state, model=MODEL, max_body=max_body
+    )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -76,6 +78,13 @@ def test_transcribe_returns_400_on_bad_wav():
     with running_server(loaded=True, recognizer=lambda a: "x") as (_srv, base):
         status, _body = _post(f"{base}/transcribe", b"not a wav")
     assert status == 400
+
+
+def test_transcribe_returns_413_when_body_exceeds_cap(make_wav):
+    wav = make_wav(np.zeros(16000, dtype=np.float32))  # ~32KB
+    with running_server(loaded=True, recognizer=lambda a: "x", max_body=100) as (_srv, base):
+        status, _body = _post(f"{base}/transcribe", wav)
+    assert status == 413
 
 
 def test_transcribe_returns_500_when_recognizer_raises(make_wav):

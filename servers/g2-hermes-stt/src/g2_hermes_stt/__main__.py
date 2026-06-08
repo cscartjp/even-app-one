@@ -30,7 +30,11 @@ def warm_and_flag(
 
 
 def main() -> None:
-    port = int(os.environ.get("STT_PORT", "8643"))
+    raw_port = os.environ.get("STT_PORT", "8643")
+    try:
+        port = int(raw_port)
+    except ValueError:
+        sys.exit(f"[g2-hermes-stt] invalid STT_PORT={raw_port!r} (must be an integer)")
     repo = os.environ.get("STT_MODEL_REPO", DEFAULT_REPO)
     model = repo.rsplit("/", 1)[-1]
 

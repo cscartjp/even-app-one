@@ -43,7 +43,18 @@ class _Handler(BaseHTTPRequestHandler):
         if not server.state.loaded:
             self._send(503, {"error": "model not loaded"})
             return
-        length = int(self.headers.get("Content-Length", 0))
+        raw_len = self.headers.get("Content-Length")
+        if raw_len is None:
+            self._send(411, {"error": "Content-Length required"})
+            return
+        try:
+            length = int(raw_len)
+        except ValueError:
+            self._send(400, {"error": "invalid Content-Length"})
+            return
+        if length > server.max_body:
+            self._send(413, {"error": "payload too large"})
+            return
         body = self.rfile.read(length) if length else b""
         try:
             result = transcribe_wav(body, server.recognizer)
@@ -60,6 +71,9 @@ class _Handler(BaseHTTPRequestHandler):
 class SttServer(HTTPServer):
     """単一スレッドの HTTPServer。リクエストは自然に直列化される（mlx 推論の競合回避）。"""
 
+    # launchd KeepAlive での即時再起動が TIME_WAIT の "Address already in use" で失敗しないように。
+    allow_reuse_address = True
+
     def __init__(
         self,
         address: tuple[str, int],
@@ -67,8 +81,10 @@ class SttServer(HTTPServer):
         recognizer: Recognizer,
         state: ModelState,
         model: str,
+        max_body: int = 8 * 1024 * 1024,
     ) -> None:
         super().__init__(address, _Handler)
         self.recognizer = recognizer
         self.state = state
         self.model = model
+        self.max_body = max_body
