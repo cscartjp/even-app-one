@@ -22,4 +22,21 @@ describe('loadConfig', () => {
     expect(loadConfig({ PORT: '9000' }).port).toBe(9000)
     expect(loadConfig({ HERMES_TIMEOUT_MS: '5000' }).hermesTimeoutMs).toBe(5000)
   })
+
+  test('CORS_ALLOWED_ORIGINS 未設定は全 origin 反映（true）', () => {
+    expect(loadConfig({}).corsAllowedOrigins).toBe(true)
+    expect(loadConfig({ CORS_ALLOWED_ORIGINS: '' }).corsAllowedOrigins).toBe(
+      true,
+    )
+    expect(loadConfig({ CORS_ALLOWED_ORIGINS: ' , ' }).corsAllowedOrigins).toBe(
+      true,
+    )
+  })
+
+  test('CORS_ALLOWED_ORIGINS はカンマ区切りで allowlist 化（空白除去）', () => {
+    expect(
+      loadConfig({ CORS_ALLOWED_ORIGINS: 'http://a:8787, http://b:8787' })
+        .corsAllowedOrigins,
+    ).toEqual(['http://a:8787', 'http://b:8787'])
+  })
 })

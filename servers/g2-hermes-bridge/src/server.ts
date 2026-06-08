@@ -38,8 +38,10 @@ export function buildServer(deps: BuildServerDeps) {
   // CORS: OPTIONS preflight と GET/POST に Access-Control-* を付与する。
   // preflight は @fastify/cors が onRequest で 204 応答して短絡するため、
   // 後段の認証 preHandler には到達しない。
+  // origin は config.corsAllowedOrigins（既定 true=全反映）。実 WebView の Origin を
+  // 採取後（Task 1.5）に CORS_ALLOWED_ORIGINS で allowlist 化して締める（仕様書 §15.1）。
   app.register(cors, {
-    origin: true,
+    origin: config.corsAllowedOrigins,
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
