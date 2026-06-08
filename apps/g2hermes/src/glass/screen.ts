@@ -1,6 +1,7 @@
 import { moveHighlight } from 'even-toolkit/glass-nav'
 import type { GlassScreen } from 'even-toolkit/glass-screen-router'
 import { line } from 'even-toolkit/types'
+import type { MicProbeStats } from '../even/mic-probe'
 
 /** グラスで選べる固定質問（Phase 1）。スマホ入力は仕様書 §18 step2 で前倒し可能。 */
 export interface PresetQuestion {
@@ -8,8 +9,14 @@ export interface PresetQuestion {
   text: string
 }
 
-/** idle→thinking→answer の状態遷移（error は失敗時）。React state が正本。 */
-export type Phase = 'idle' | 'thinking' | 'answer' | 'error'
+/** idle メニューの最後に置く「マイク診断」項目のラベル（Phase 3 / Task 3.0 gating spike・暫定）。 */
+export const PROBE_LABEL = '🎤 マイク診断 (Phase 3)'
+
+/**
+ * idle→thinking→answer の状態遷移（error は失敗時）。React state が正本。
+ * probe は Task 3.0 のマイク診断用の暫定 phase（Task 3.4 で本番の音声入力に置き換える）。
+ */
+export type Phase = 'idle' | 'thinking' | 'answer' | 'error' | 'probe'
 
 export interface Snapshot {
   phase: Phase
@@ -19,11 +26,15 @@ export interface Snapshot {
   pages: string[]
   pageIndex: number
   errorMsg: string | null
+  /** probe phase 中のマイク診断結果（live 更新） */
+  probeStats: MicProbeStats | null
 }
 
 /** 画面操作の副作用。AppGlasses が React state 更新として実体を渡す。 */
 export interface Ctx {
   ask: (q: PresetQuestion) => void
+  /** マイク診断を開始する（Task 3.0 gating spike・暫定） */
+  probe: () => void
   nextPage: () => void
   prevPage: () => void
   back: () => void
@@ -78,13 +89,42 @@ export const hermesScreen: GlassScreen<Snapshot, Ctx> = {
       }
     }
 
-    // idle: 質問の選択肢を highlight 付きで並べる
+    if (s.phase === 'probe') {
+      const p = s.probeStats
+      // null（startMicProbe の bridge 待ち中）は「起動中…」。これを「起動失敗」にすると
+      // 起動直後の数百ms〜1.5s が誤判定（false negative）になる（CodeRabbit/Copilot 指摘）。
+      // started 後は events>0 で「受信中」、未受信なら「受信待ち」。
+      const status = !p
+        ? '起動中…'
+        : p.note
+          ? p.note
+          : p.started
+            ? p.events > 0
+              ? '受信中'
+              : '起動OK・受信待ち'
+            : '起動失敗(権限?)'
+      const bytes =
+        p && p.firstBytes.length > 0 ? `[${p.firstBytes.join(' ')}]` : '-'
+      return {
+        lines: [
+          ...header,
+          line('  マイク診断 (Task 3.0)'),
+          line(`  audioControl: ${status}`, 'meta'),
+          line(`  PCM events: ${p?.events ?? 0}  bytes: ${p?.totalBytes ?? 0}`),
+          line(`  first: len=${p?.firstByteLength ?? 0} ${bytes}`, 'meta'),
+          line('  タップで停止して戻る', 'meta'),
+        ],
+      }
+    }
+
+    // idle: 質問の選択肢 + 末尾にマイク診断項目を highlight 付きで並べる
     return {
       lines: [
         ...header,
         ...s.presets.map((p, i) =>
           line(p.label, 'normal', i === nav.highlightedIndex),
         ),
+        line(PROBE_LABEL, 'normal', nav.highlightedIndex === s.presets.length),
         line(HINT_IDLE, 'meta'),
       ],
     }
@@ -98,17 +138,29 @@ export const hermesScreen: GlassScreen<Snapshot, Ctx> = {
           highlightedIndex: moveHighlight(
             nav.highlightedIndex,
             action.direction,
-            s.presets.length - 1,
+            // presets + 末尾のマイク診断項目（index = presets.length）
+            s.presets.length,
           ),
         }
       }
       if (action.type === 'SELECT_HIGHLIGHTED') {
+        // 末尾はマイク診断、それ以外はプリセット質問
+        if (nav.highlightedIndex === s.presets.length) {
+          ctx.probe()
+          return nav
+        }
         const q = s.presets[nav.highlightedIndex]
         if (q) ctx.ask(q)
         return nav
       }
       // GO_BACK: idle でのダブルタップは終了
       ctx.exit()
+      return nav
+    }
+
+    if (s.phase === 'probe') {
+      // どの操作でもマイクを停止して質問選択へ戻す
+      if (action.type !== 'HIGHLIGHT_MOVE') ctx.back()
       return nav
     }
 

@@ -104,7 +104,7 @@ Hermes Agent API Server（`hermes gateway`）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 3.0 | 実機マイク到達性スパイク。捨て（or 正式版）`app.json` に `g2-microphone` を足し、最小キャプチャ + console ログをサイドロード。**シミュレーター不可（Mac マイク代替で `g2-microphone` 権限フローを検証できない）＝実機のみ**。先に配布経路（sideload / Hub In-Development）を決める。実機操作はユーザー [tdd:skip:throwaway-spike] | 実機で `audioControl(true)` が `true` を返し、`audioEvent.audioPcm`（非空 Uint8Array）が console に届くことをユーザーが確認・記録。**シミュレーター green は不可**。権限が降りない/拒否なら `blocked` にし `phone-microphone` 等の代替を検討 | - | cc:TODO |
+| 3.0 | 実機マイク到達性スパイク。捨て（or 正式版）`app.json` に `g2-microphone` を足し、最小キャプチャ + console ログをサイドロード。**シミュレーター不可（Mac マイク代替で `g2-microphone` 権限フローを検証できない）＝実機のみ**。先に配布経路（sideload / Hub In-Development）を決める。実機操作はユーザー [tdd:skip:throwaway-spike] | 実機で `audioControl(true)` が `true` を返し、`audioEvent.audioPcm`（非空 Uint8Array）が console に届くことをユーザーが確認・記録。**シミュレーター green は不可**。権限が降りない/拒否なら `blocked` にし `phone-microphone` 等の代替を検討 | - | cc:完了（2026-06-09 実機確認OK・**gating PASS**: PR #27 で g2hermes に menu「🎤 マイク診断」+ probe（`src/even/mic-probe.ts`＝`audioControl(true)`→`onEvenHubEvent` で `audioPcm` を観測、SDK 直叩き隔離）を実装、`app.json` に `g2-microphone` 追加、**v0.1.1** に bump して `evenhub pack`→Hub In-Development で実機 G2 に載せユーザー確認。`audioControl` 起動OK・`PCM events`/`bytes` 増加。**GPS 型権限ブロックは不発＝マイクは動く**。**PCM 実形式確定**: `first: len=3200`B/イベント＝1600サンプル＝**100msチャンク**（約10ev/s）、先頭バイト `[4 251 255 6 9 254 255 2 0]`→**16kHz / mono / s16le**（`ffmpeg -f s16le -ar 16000 -ac 1` 可。仕様書の「40バイト/フレーム」は誤り）。3.1.1/3.3.1/3.3.2 の WAV 化はこの形式前提。probe の `probe` phase は暫定で 3.4.2 の録音状態機械で置換予定） |
 
 ### Phase 3.1: STT サイドカー（Mac B・ローカル mlx-whisper）
 
@@ -132,7 +132,7 @@ Hermes Agent API Server（`hermes gateway`）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 3.4.1 | `app.json` に `g2-microphone` 権限追加（`desc` は審査向け文言＝spec §4.6）。network whitelist は不変 [tdd:skip:config] | `app.json` に `g2-microphone` と desc 文言が実在、evenhub-cli で valid、network whitelist 不変 | - | cc:TODO |
+| 3.4.1 | `app.json` に `g2-microphone` 権限追加（`desc` は審査向け文言＝spec §4.6）。network whitelist は不変 [tdd:skip:config] | `app.json` に `g2-microphone` と desc 文言が実在、evenhub-cli で valid、network whitelist 不変 | - | cc:完了（PR #27 で `g2-microphone`+desc 追加済み・network whitelist 不変・`evenhub pack` valid。3.0 実機検証もこの権限で通過） |
 | 3.4.2 | 状態機械拡張 `idle→recording→transcribing→review→thinking→answer` + `screen.ts` action（録音開始/停止/送信/録り直し）、idle にプリセット併存、error 表示。**recording 中 background→foreground で `audioControl` が閉じ/復帰**（`everything-evenhub:background-state`）。recording 表示は静的 or 更新 ≤1s で BLE 過負荷回避 [tdd:required]（reducer ユニット。シミュレーター部分は integration） | 状態遷移 reducer ユニット green。シミュレーターで状態遷移とモック PCM の配線確認（実音声は 3.5.1）。background→foreground でマイクが閉じ/復帰する確認。biome 0、build 成功 | 3.3.2, 3.4.1 | cc:TODO |
 
 ### Phase 3.5: E2E + パッケージング
