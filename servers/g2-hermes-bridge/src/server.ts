@@ -8,6 +8,7 @@ import {
   HermesTimeoutError,
   type SessionStore,
 } from './hermes-client'
+import { SttTimeoutError, transcribeAudio } from './stt-client'
 
 /** buildServer の依存。`fetchImpl` を差し替えると Hermes をモックできる。 */
 export interface BuildServerDeps {
@@ -45,6 +46,14 @@ export function buildServer(deps: BuildServerDeps) {
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
+
+  // 音声 WAV を raw Buffer として受ける（`parseAs: 'buffer'` を明示しないと既定で
+  // 文字列化され WAV が壊れる。仕様書 §4.2）。bodyLimit 超過は Fastify が 413 を返す。
+  app.addContentTypeParser(
+    'audio/wav',
+    { parseAs: 'buffer', bodyLimit: config.transcribeMaxBytes },
+    (_req, body, done) => done(null, body),
+  )
 
   // WebView の実 Origin を採取する（仕様書のリスク3: iOS WKWebView が null を送る等の切り分け用）。
   app.addHook('onRequest', async (req) => {
@@ -95,6 +104,43 @@ export function buildServer(deps: BuildServerDeps) {
       return reply.code(502).send({
         ok: false,
         error: 'hermes_unreachable',
+        detail: errorMessage(err),
+      })
+    }
+  })
+
+  // 音声 WAV を受け取り STT サイドカーへ転送して文字起こしを返す（仕様書 §4.2）。
+  // size 上限超過は parser の bodyLimit が 413、サイドカー不達は 502、timeout は 504。
+  app.post('/v1/transcribe', async (req, reply) => {
+    // Content-Type を明示検証する（仕様書 §4.2）。audio/wav 以外（既定 parser が効く
+    // application/json 等）が body 欠落の 400 に化けるのを防ぎ、415 で明確に弾く。
+    const mediaType = (req.headers['content-type'] ?? '')
+      .split(';')[0]
+      ?.trim()
+      .toLowerCase()
+    if (mediaType !== 'audio/wav') {
+      return reply.code(415).send({
+        ok: false,
+        error: 'unsupported_media_type',
+        detail: 'Content-Type must be audio/wav',
+      })
+    }
+    const body = req.body
+    if (!Buffer.isBuffer(body) || body.length === 0) {
+      return reply
+        .code(400)
+        .send({ ok: false, error: 'invalid_request', detail: 'empty audio' })
+    }
+    try {
+      const result = await transcribeAudio({ config, fetchImpl }, body)
+      return reply.send(result)
+    } catch (err) {
+      if (err instanceof SttTimeoutError) {
+        return reply.code(504).send({ ok: false, error: 'stt_timeout' })
+      }
+      return reply.code(502).send({
+        ok: false,
+        error: 'stt_unreachable',
         detail: errorMessage(err),
       })
     }

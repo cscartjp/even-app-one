@@ -118,14 +118,14 @@ Hermes Agent API Server（`hermes gateway`）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 3.2.1 | `POST /v1/transcribe`: **`addContentTypeParser('audio/wav', { parseAs: 'buffer' })` で raw Buffer 受信**（`parseAs:'buffer'` 未指定だと文字列化され WAV が壊れる）、Bearer、size 上限→413、`AbortController`→504、**サイドカー不達→502**、OPTIONS 認証スキップ。サイドカーへ転送。一時データはメモリ優先（ディスクなら 0600+finally 削除）。ルート骨格+inject は 3.1.1 を待たず着手可、実サイドカー curl だけ 3.1.1 依存 [tdd:required]（fetchImpl でサイドカーをモック） | inject テストで 401（無トークン）/ 200+`{text}` / **415 でない（audio/wav parser 登録済）** / OPTIONS 204+CORS（audio/wav preflight 通過）/ 413（size超）/ 502（不達）/ 504（timeout）。biome 0、build 成功 | -（骨格+injectは独立。実サイドカー curl のみ 3.1.1） | cc:TODO |
+| 3.2.1 | `POST /v1/transcribe`: **`addContentTypeParser('audio/wav', { parseAs: 'buffer' })` で raw Buffer 受信**（`parseAs:'buffer'` 未指定だと文字列化され WAV が壊れる）、Bearer、size 上限→413、`AbortController`→504、**サイドカー不達→502**、OPTIONS 認証スキップ。サイドカーへ転送。一時データはメモリ優先（ディスクなら 0600+finally 削除）。ルート骨格+inject は 3.1.1 を待たず着手可、実サイドカー curl だけ 3.1.1 依存 [tdd:required]（fetchImpl でサイドカーをモック） | inject テストで 401（無トークン）/ 200+`{text}` / **415 でない（audio/wav parser 登録済）** / OPTIONS 204+CORS（audio/wav preflight 通過）/ 413（size超）/ 502（不達）/ 504（timeout）。biome 0、build 成功 | -（骨格+injectは独立。実サイドカー curl のみ 3.1.1） | cc:完了 [6280200]（`stt-client.ts` 新設＋`POST /v1/transcribe`。**メモリ直渡し**でディスク不使用。inject 10本＋config 2本で `bun test` 39 pass・biome 0・build OK。Code Reviewer エージェント独立レビュー APPROVE〔hermes-client パターン踏襲・error→status 取りこぼし無し・`/v1/ask` への副作用無し〕。指摘の非2xx→502 テストを追加。parser `bodyLimit`(2MB)>global 1MB を 1.5MB→200 で実機確認。**実サイドカー curl は 3.1.1 待ち**） |
 | 3.2.2 | `GET /health` 拡張: STT 到達性 `stt` フィールド追加 [tdd:required] | fetchImpl モックで stt 200→reachable / ECONNREFUSED→unreachable に切り替わる inject テスト。biome 0 | 3.2.1 | cc:TODO |
 
 ### Phase 3.3: クライアント音声キャプチャ（even-toolkit 流用）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 3.3.1 | even-toolkit/stt の export 実体確認（`GlassBridgeSource` / `createAudioBuffer` / `float32ToWav` の正確な名・signature）。`bun install` 済みで `even-toolkit/stt` が解決することを確認。無ければ自前 WAV エンコーダ（44byte header + Int16）方針を確定 [tdd:skip:investigation] | 正確な export 名・引数を設計ノート（spec §9-1）に記録。解決不能なら自前エンコーダ方針を記録 | - | cc:TODO |
+| 3.3.1 | even-toolkit/stt の export 実体確認（`GlassBridgeSource` / `createAudioBuffer` / `float32ToWav` の正確な名・signature）。`bun install` 済みで `even-toolkit/stt` が解決することを確認。無ければ自前 WAV エンコーダ（44byte header + Int16）方針を確定 [tdd:skip:investigation] | 正確な export 名・引数を設計ノート（spec §9-1）に記録。解決不能なら自前エンコーダ方針を記録 | - | cc:完了 [2e9baac]（even-toolkit **v1.7.2** の `dist/stt/*.d.ts` を直読し spec §9.1 に記録。`even-toolkit/stt` サブパス解決OK。`GlassBridgeSource`=**class**（`new`・`window.__evenBridge` 自動検出・16000Hz・`onAudioData(cb:(pcm:Float32Array,sampleRate:number))`）/ `createAudioBuffer(config?)`=factory（`getWav()`→**WAV Blob**）/ `float32ToWav(data,sampleRate)`→**Blob**。**自前エンコーダ不要**と確定。3.3.2 は WAV Blob を `fetch` body 直渡し＋`Content-Type:audio/wav` 明示） |
 | 3.3.2 | 音声キャプチャ + WAV化 + POST: `bridgeClient` に `transcribe()` 追加、`AbortController`、最大30s タイマー、停止/終了/`beforeunload` で `source.stop()`（`audioControl(false)`）。空/極短録音はクライアント閾値で弾き recording へ戻す [tdd:required] | PCM→WAV ユニット（無音/最大長/通常）green、空/極短を弾く判定のユニット green、biome 0、build 成功 | 3.2.1, 3.3.1 | cc:TODO |
 
 ### Phase 3.4: 状態機械 + 権限
