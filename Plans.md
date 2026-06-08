@@ -110,7 +110,7 @@ Hermes Agent API Server（`hermes gateway`）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 3.0 | **[gating spike]** マイク権限 + PCM 受信の実機 de-risk。g2hermes に一時マイク probe（`GlassBridgeSource` で `audioControl(true)` → 受信 PCM の `typeof`/`byteLength`/先頭バイトを glass テキスト表示 + `console.log`）を最小実装。Hub In-Development で**ユーザーが実機確認**。**`audioPcm` が届かなければ GPS 前例（memory `reference_hub_dev_mode`）同様の権限ブロックとして Phase 3 を停止しユーザー判断へ** [tdd:skip:hardware-spike] | 実機で `audioPcm` が `Uint8Array`（byteLength>0）で届くことをユーザーがログ/表示で確認 **または** 届かないことを確認して GitHub issue 化し停止。結果を下記検証メモに記録 | 1.5 | cc:WIP |
+| 3.0 | **[gating spike]** マイク権限 + PCM 受信の実機 de-risk。g2hermes に一時マイク probe（`GlassBridgeSource` で `audioControl(true)` → 受信 PCM の `typeof`/`byteLength`/先頭バイトを glass テキスト表示 + `console.log`）を最小実装。Hub In-Development で**ユーザーが実機確認**。**`audioPcm` が届かなければ GPS 前例（memory `reference_hub_dev_mode`）同様の権限ブロックとして Phase 3 を停止しユーザー判断へ** [tdd:skip:hardware-spike] | 実機で `audioPcm` が `Uint8Array`（byteLength>0）で届くことをユーザーがログ/表示で確認 **または** 届かないことを確認して GitHub issue 化し停止。結果を下記検証メモに記録 | 1.5 | cc:完了（2026-06-09 実機確認OK: g2hermes v0.1.1 を実機 G2 にインストール→「🎤 マイク診断」で `audioControl` 起動OK・`PCM events`/`bytes` が増加。**GPS 前例の権限ブロックは不発＝マイクは動く**。PR #27） |
 | 3.1 | **[spike]** PCM 形式確定。3.0 の生 PCM をダンプし sampleRate/signed/endian/channel を確定。ダンプ→WAV(s16le 16kHz mono)→再生で肉声確認し、Bridge 側 WAV 化方式（ヘッダ生成 or ffmpeg）を決める [tdd:skip:hardware-spike] | PCM 実形式を検証メモに記録。ダンプ PCM から生成した WAV が再生可能で肉声と一致 | 3.0 | cc:TODO |
 | 3.2 | **Mac B STT warm サイドカー**。mlx-whisper（`whisper-large-v3-mlx`）をモデル warm 常駐する最小 HTTP サービス `servers/stt-sidecar`（`.venv` 3.12・`POST /v1/audio/transcriptions` で WAV/multipart → `{text}`・日本語指定・幻覚リピート除去流用）。launchd plist は既存 Bridge plist と同様に repo 配置（memory `feedback-keep-deploy-artifacts-in-repo`）。warm 推論レイテンシ計測 [tdd:required] | サイドカー起動でモデル 1 回ロード、WAV POST で日本語 transcript 返却、15秒音声の warm 推論レイテンシを検証メモに記録（目標 ≤ 数秒）。pure 変換部は単体テスト | 3.1 | cc:TODO |
 | 3.3 | **Bridge `/v1/stt` ルート + STT proxy**。受信音声（単発: WAV or PCM base64）→（PCM なら WAV 化）→ Mac B サイドカーへ proxy → `{transcript}` 返却。Bearer 認証・`AbortController` タイムアウト・処理後バッファ即削除。`config.ts` に `STT_BASE_URL`/`STT_TIMEOUT_MS` 追加。Hermes は無改変の既存 `/v1/ask` を client が続けて呼ぶ [tdd:required] | `bun test` グリーン（inject: 認証401・タイムアウト504系・proxy mock で transcript 返却・処理後バッファ削除）、`biome check` 0、`bun run build` 成功 | 3.1, 3.2 | cc:TODO |
@@ -119,8 +119,11 @@ Hermes Agent API Server（`hermes gateway`）
 
 ### 検証メモ（Phase 3・記入用）
 
-- [ ] 実機マイク権限: `audioControl(true)` で `audioEvent.audioPcm` が届くか（3.0・GPS 前例との差を確認）
-- [ ] PCM 実形式: sampleRate / signed / endian / channel（3.1）
+- [x] 実機マイク権限: `audioControl(true)` で `audioEvent.audioPcm` が届くか（3.0・GPS 前例との差を確認）→ **OK（2026-06-09・g2hermes v0.1.1 実機）。起動OK・PCM events/bytes 増加。GPS 型権限ブロックは不発**
+- [x] PCM 実形式（2026-06-09・3.0 probe 実測でほぼ確定）: **`first: len=3200` バイト/イベント**、先頭バイト `[4 251 255 6 9 254 255 2 0]`。
+  - **= 16kHz / 16bit signed little-endian（s16le）**。バイトを s16le ペアで読むと −1276/+1791/−503/+767 と 0 中心に小さく±に振れる静音波形。上位バイトが 0x00〜0x06（正小）か 0xFB〜0xFF（負小）に集中＝s16le の決定的サイン。
+  - 3200B = 1600 サンプル = **100ms チャンク**（約10イベント/秒）。channel は mono が整合（最終確認は 3.1 の WAV 再生）。
+  - → 仕様書 §9.1 の `ffmpeg -f s16le -ar 16000 -ac 1` がそのまま使える。§19 の「40バイト/フレーム」は誤り。
 - [ ] warm mlx-whisper の実レイテンシ（15秒音声・3.2）
 - [ ] 実機 E2E レイテンシ（音声→回答・3.5）
 
