@@ -1,0 +1,8 @@
+{
+  "name": "even-app-one",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*"
+  ]
+}
