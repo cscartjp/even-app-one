@@ -4,7 +4,7 @@ import { concatChunks, MAX_RECORDING_MS } from '../audio/capture'
 // Task 3.3.2 の音声キャプチャ機構。even-toolkit `GlassBridgeSource` を流用し
 // （spec §4.4 / 判定D）、audioControl(true) → PCM(Float32) 蓄積 → stop で audioControl(false)
 // までを 1 セッションに閉じる。`even-toolkit/stt`（index）は import 時に `window` を参照する
-// WebView 専用モジュールなので、mic-probe.ts と同様にこの `even/` 配下に隔離する
+// WebView 専用モジュールなので、bridge.ts / lifecycle.ts と同じくこの `even/` 配下に隔離する
 // （pure な WAV 化・ガードは audio/capture.ts 側でユニットテストする）。
 
 /** 録音セッション。stop() でマイクを閉じ、録音した全 Float32 サンプルを返す。 */
