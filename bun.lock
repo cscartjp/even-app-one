@@ -5,6 +5,30 @@
     "": {
       "name": "even-app-one",
     },
+    "apps/g2hermes": {
+      "name": "g2hermes",
+      "version": "0.1.0",
+      "dependencies": {
+        "@evenrealities/even_hub_sdk": "^0.0.10",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.0",
+        "even-toolkit": "^1.7.2",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "react-router": "^7.0.0",
+        "tailwind-merge": "^3.0.0",
+      },
+      "devDependencies": {
+        "@biomejs/biome": "^2.4.16",
+        "@evenrealities/evenhub-cli": "^0.1.13",
+        "@types/node": "^22.0.0",
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "@vitejs/plugin-react": "^6.0.2",
+        "typescript": "~5.9.0",
+        "vite": "^8.0.0",
+      },
+    },
     "apps/hisho": {
       "name": "hisho",
       "version": "1.0.0",
@@ -360,6 +384,8 @@
     "fsevents": ["fsevents@2.3.3", "", { "os": "darwin" }, "sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw=="],
 
     "g2-hermes-bridge": ["g2-hermes-bridge@workspace:servers/g2-hermes-bridge"],
+
+    "g2hermes": ["g2hermes@workspace:apps/g2hermes"],
 
     "graceful-fs": ["graceful-fs@4.2.11", "", {}, "sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ=="],
 

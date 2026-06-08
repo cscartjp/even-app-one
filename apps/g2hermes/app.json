@@ -1,0 +1,17 @@
+{
+  "package_id": "com.frogman.g2hermes",
+  "edition": "202601",
+  "name": "G2 Hermes",
+  "version": "0.1.0",
+  "min_app_version": "2.0.0",
+  "min_sdk_version": "0.0.10",
+  "entrypoint": "index.html",
+  "permissions": [
+    {
+      "name": "network",
+      "desc": "Mac 上の Bridge Server に接続し、Hermes Agent とテキストで会話するために使用します。",
+      "whitelist": ["http://100.64.0.1:8787"]
+    }
+  ],
+  "supported_languages": ["ja", "en"]
+}
