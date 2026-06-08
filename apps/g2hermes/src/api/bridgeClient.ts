@@ -60,8 +60,19 @@ export async function askBridge(
     if (!res.ok) {
       return { ok: false, error: `Bridge エラー (${res.status})` }
     }
-    const result = (await res.json()) as AskResult
-    return { ok: true, result }
+    // body 読み取りは outer try に置く（タイムアウトで abort された場合は下の catch で
+    // 「タイムアウト」になる）。JSON 解析と形検証は分けて原因を切り分ける。
+    const body = await res.text()
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(body)
+    } catch {
+      return { ok: false, error: '応答の解析に失敗' }
+    }
+    if (!isAskResult(parsed)) {
+      return { ok: false, error: '応答が不正な形式' }
+    }
+    return { ok: true, result: parsed }
   } catch {
     // abort 由来はタイムアウト、それ以外は到達不能（CORS/whitelist/未起動）
     return {
@@ -71,4 +82,18 @@ export async function askBridge(
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * Bridge 応答が AskResult の最低限の形か実行時に検証する（`as` の素通しを防ぐ）。
+ * 利用側が触る `text` / `pages`（文字列配列）だけを必須にする。
+ */
+function isAskResult(v: unknown): v is AskResult {
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as Record<string, unknown>
+  return (
+    typeof o.text === 'string' &&
+    Array.isArray(o.pages) &&
+    o.pages.every((p) => typeof p === 'string')
+  )
 }

@@ -44,9 +44,10 @@ export function AppGlasses() {
     setPhase('thinking')
     const outcome = await askBridge(SESSION_ID, q.text, 'short')
     if (outcome.ok) {
-      const next = outcome.result.pages.length
-        ? outcome.result.pages
-        : [outcome.result.text]
+      const { pages: resPages, text } = outcome.result
+      // pages 優先、無ければ text、どちらも空なら空ページにしない
+      const next =
+        resPages.length > 0 ? resPages : text ? [text] : ['(回答がありません)']
       setPages(next)
       setPageIndex(0)
       setPhase('answer')
