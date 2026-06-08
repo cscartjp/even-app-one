@@ -52,7 +52,7 @@ export const hermesScreen: GlassScreen<Snapshot, Ctx> = {
         lines: [
           ...header,
           line('  REC ●  録音中'),
-          line('  タップで停止 / 30秒で自動送信', 'meta'),
+          line('  タップで停止 / 30秒で自動停止', 'meta'),
           line(s.notice ? `  ${s.notice}` : '', 'meta'),
         ],
       }

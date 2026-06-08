@@ -170,17 +170,19 @@ export function AppGlasses() {
     void requestExit()
   }, [])
 
-  // 前面/背面で recording 中のマイクを閉じ/復帰させる（spec §4.5 / DoD）。
+  // 前面/背面でのマイク制御（spec §4.5 / DoD）。
+  // 背面化したら録音を中止し idle へ戻す（マイクを閉じる）。背面中の録音バッファは保持できず、
+  // そのまま復帰すると「背面後に録れた分だけ」を黙って送る部分欠落になり得るため、
+  // バッファを引きずらず明示キャンセルする（安全側・Copilot 指摘）。
+  // 復帰（前面）時は idle に戻っているので何もしない（再録音はユーザーのタップで開始）。
   useEffect(() => {
     let handle: LifecycleHandle | null = null
     let disposed = false
     void watchLifecycle({
       onBackground: () => {
-        if (stateRef.current.phase === 'recording') void stopMic()
+        if (stateRef.current.phase === 'recording') back()
       },
-      onForeground: () => {
-        if (stateRef.current.phase === 'recording') startMic()
-      },
+      onForeground: () => {},
     }).then((h) => {
       if (disposed) h.stop()
       else handle = h
@@ -191,7 +193,7 @@ export function AppGlasses() {
       // アンマウント時（終了等）も必ずマイクを閉じる
       void stopMic()
     }
-  }, [stopMic, startMic])
+  }, [back, stopMic])
 
   const ctxRef = useRef<Ctx>({
     ask,

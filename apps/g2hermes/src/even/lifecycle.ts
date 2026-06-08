@@ -12,9 +12,9 @@ import {
 const BRIDGE_WAIT_MS = 1500
 
 export interface LifecycleHandlers {
-  /** 前面復帰（FOREGROUND_ENTER）。recording 中ならマイクを開き直す。 */
+  /** 前面復帰（FOREGROUND_ENTER_EVENT）時に呼ぶ。具体的な処理は呼び出し側で決める。 */
   onForeground: () => void
-  /** 背面化（FOREGROUND_EXIT）。recording 中ならマイクを閉じる（プライバシー）。 */
+  /** 背面化（FOREGROUND_EXIT_EVENT）時に呼ぶ。具体的な処理は呼び出し側で決める。 */
   onBackground: () => void
 }
 
