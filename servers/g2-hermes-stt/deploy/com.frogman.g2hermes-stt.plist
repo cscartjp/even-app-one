@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.frogman.g2hermes-stt</string>
+
+    <!-- uv で inference extra（mlx-whisper）込みの .venv を解決して起動 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yoshiura/.local/bin/uv</string>
+        <string>run</string>
+        <string>--extra</string>
+        <string>inference</string>
+        <string>python</string>
+        <string>-m</string>
+        <string>g2_hermes_stt</string>
+    </array>
+
+    <!-- uv は WorkingDirectory の pyproject.toml / .venv を解決する -->
+    <key>WorkingDirectory</key>
+    <string>/Users/yoshiura/dev/even-app-one/servers/g2-hermes-stt</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yoshiura/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+
+        <!-- モデルキャッシュ（DL 済み = ~/ai/models/hub）。未設定だと ~/.cache/huggingface を見て再 DL してしまう -->
+        <key>HF_HOME</key>
+        <string>/Users/yoshiura/ai/models</string>
+    </dict>
+
+    <!-- ログイン時に起動 -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- 常駐サーバーなので常に再起動（clean exit も異常とみなし復帰させる） -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- 起動失敗が続いた場合の再起動間引き（既定 10 秒より保守的に）。タイトな再起動ループ・ログ肥大を防ぐ -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yoshiura/g2stt.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yoshiura/g2stt.err</string>
+</dict>
+</plist>
