@@ -161,9 +161,12 @@ export async function transcribe(wav: Blob): Promise<TranscribeOutcome> {
   }
 }
 
-/** Bridge 応答が TranscribeResult の最低限の形か検証する（利用側が触る `text` のみ必須）。 */
+/**
+ * Bridge 応答が TranscribeResult の形か検証する。`ok===true` まで見て、200 でも
+ * `ok:false` のエラー形を成功扱いしないようにする（CodeRabbit 指摘・契約に整合）。
+ */
 function isTranscribeResult(v: unknown): v is TranscribeResult {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
-  return typeof o.text === 'string'
+  return o.ok === true && typeof o.text === 'string' && typeof o.ms === 'number'
 }
