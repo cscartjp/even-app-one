@@ -31,20 +31,55 @@ const SPACE_PX = getTextWidth(' ')
 const BAR_WIDTH_PX = getTextWidth('─'.repeat(27))
 
 /**
+ * left と right を separator 右端（540px）に揃えて 1 行にする。
+ * ステータスバーと split ヘッダーの右寄せ（時計 / N/M カウント）で共用。
+ * 右側（時計 / カウント）を優先し、左が長くて収まらない時は left を省略して
+ * 常に 540px 以内に収める（右側が押し出されて消えるのを防ぐ）。
+ */
+export function justifyToBarWidth(left: string, right: string): string {
+  const rightPx = getTextWidth(right)
+  const leftFit = truncateByPixel(left, BAR_WIDTH_PX - rightPx - SPACE_PX)
+  const spaces = Math.max(
+    1,
+    Math.floor((BAR_WIDTH_PX - getTextWidth(leftFit) - rightPx) / SPACE_PX),
+  )
+  return `${leftFit}${' '.repeat(spaces)}${right}`
+}
+
+/**
  * ステータスバー共通実装。全画面の出力先頭 2 行（バー＋罫線）に挿入する。
  * 罫線が 1 行消費するため、各画面は実機の 10 行制約に収まるよう空行を調整する。
  * 内容: 「HISHO」＋右寄せ「YYYY年M月D日（曜） HH:MM」（separator 右端に揃える）
  */
 export function statusBarLines(now: Date = new Date()): DisplayLine[] {
-  const left = 'HISHO'
-  const right = formatClock(now)
-  const spaces = Math.max(
-    1,
-    Math.floor(
-      (BAR_WIDTH_PX - getTextWidth(left) - getTextWidth(right)) / SPACE_PX,
-    ),
-  )
-  return [line(`${left}${' '.repeat(spaces)}${right}`), line('', 'separator')]
+  return [
+    line(justifyToBarWidth('HISHO', formatClock(now))),
+    line('', 'separator'),
+  ]
+}
+
+const ELLIPSIS = '…'
+const ELLIPSIS_PX = getTextWidth(ELLIPSIS)
+
+/**
+ * テキストを最大ピクセル幅に収まるよう省略する。
+ * 超過時は「…」を付け、「…」込みで maxPx を超えない側に丸める。
+ * maxPx が「…」幅未満なら「…」すら入らないため空文字を返す（maxPx を超えない保証）。
+ * 幅は @evenrealities/pretext の getTextWidth（LVGL 実機レンダリングと一致）。
+ */
+export function truncateByPixel(text: string, maxPx: number): string {
+  if (getTextWidth(text) <= maxPx) return text
+  if (maxPx < ELLIPSIS_PX) return ''
+  const limit = maxPx - ELLIPSIS_PX
+  let width = 0
+  let out = ''
+  for (const ch of text) {
+    const w = getTextWidth(ch)
+    if (width + w > limit) break
+    out += ch
+    width += w
+  }
+  return out + ELLIPSIS
 }
 
 export interface AppSnapshot {

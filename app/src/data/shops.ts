@@ -47,6 +47,8 @@ export interface Shop {
   readonly closedDays?: readonly number[]
   /** 一言メモ（「現金のみ」「火曜定休」など） */
   readonly note?: string
+  /** 電話番号（判明している店のみ。架空番号は入れない） */
+  readonly tel?: string
 }
 
 /** "HH:MM" 2点から営業帯を作るヘルパー */
