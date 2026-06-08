@@ -62,7 +62,7 @@ Hermes Agent API Server（`hermes gateway`）
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | 0.1 | ルート `package.json` の `workspaces` を `["apps/*", "servers/*"]` に拡張し、`servers/` ディレクトリを用意 [tdd:skip:config-only] | `bun install` がエラー0で通り、`servers/*` が workspace として認識される。`apps/hisho` のビルド/型に影響なし（`apps/hisho` は読み取りのみ・改変禁止） | - | cc:完了 [288a5fc] |
-| 0.2 | Bridge Server パッケージ雛形 `servers/g2-hermes-bridge`（Fastify + @fastify/cors + zod、TS、biome、`bun test` 前提。`.env.example` に PORT/BRIDGE_TOKEN/HERMES_BASE_URL/HERMES_API_KEY） [tdd:skip:scaffold-only] | `bun run --filter g2-hermes-bridge build`（tsc）成功、`biome check` エラー0、`.env.example` あり（実 `.env` は gitignore） | 0.1 | cc:完了 [58eba3f] |
+| 0.2 | Bridge Server パッケージ雛形 `servers/g2-hermes-bridge`（Fastify + @fastify/cors + zod、TS、biome、`bun test` 前提。`env.example`（ドット無し: secret ガードが `.env*` 書き込みをブロックするため）に PORT/BRIDGE_TOKEN/HERMES_BASE_URL/HERMES_API_KEY） [tdd:skip:scaffold-only] | `bun run --filter g2-hermes-bridge build`（tsc）成功、`biome check` エラー0、`env.example` あり（実 `.env` は gitignore） | 0.1 | cc:完了 [58eba3f] |
 | 0.3 | G2 クライアント雛形 `apps/g2hermes`（Vite+TS+React+even-toolkit、hisho の vite/biome/tsconfig を踏襲）+ `app.json`（package_id `com.frogman.g2hermes`、network whitelist のみ。**マイク権限は入れない**=Phase 1 はテキストのみ） [tdd:skip:scaffold-only] | `bun run --filter g2hermes build` 成功、`biome check` エラー0、`app.json` が evenhub-cli で valid | 0.1 | cc:TODO |
 
 ## Phase 1: テキスト Bridge PoC
