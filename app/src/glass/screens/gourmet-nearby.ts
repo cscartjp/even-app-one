@@ -37,14 +37,23 @@ function detailLines(shop: Shop, now: Date) {
 // ─── split 表示（左=店舗リスト / 右=選択店舗の詳細） ───
 // 正本: app/preview/design-mock.html の gourmetNearby ノード（2026-06-08 確定）
 
-/** ヘッダー行数（ステータスバー + タイトル）× 実機 line height 27px */
-const SPLIT_HEADER_PX = 2 * 27
-/** 左ペイン幅。モックの .nb-list width:55% （576 × 0.55 ≈ 317px） */
-const SPLIT_LEFT_PX = 317
-/** 左リストの最大表示行数。下部領域 (288-54)px ÷ 27px ≈ 8 行から余裕を見て 7 */
+/** ヘッダー行数（ステータスバー + タイトル + 罫線）× 実機 line height 27px */
+const SPLIT_HEADER_PX = 3 * 27
+/** 左リストの最大表示行数。下部領域 (288-81)px ÷ 27px ≈ 7 行 */
 const SPLIT_MAX_VISIBLE = 7
-/** 左リストで店名に割ける最大幅。モックの NAME_W=18（全角9文字相当）の pretext 換算 */
+/**
+ * 3 ペイン構成のピクセル幅 [左リスト, 縦線, 右詳細]（合計 576px）。
+ * モックの .nb-list border-right を中央の細いペインで再現する。
+ * split のコンテナ枠線は even-toolkit が強制的に消すため、独立ペインに
+ * テキストの縦線を描く方式にする（スペース埋めだとフォント幅誤差で折り返すため）。
+ */
+const SPLIT_PANE_WIDTHS = [300, 12, 264]
+/** 左リストで店名に割ける最大幅。左ペイン 300px 内に cursor+マーク+距離込みで収める */
 const NAME_MAX_PX = getTextWidth('あ') * 9
+/** 縦区切り線ペインの中身（下部領域の行数ぶん '│' を縦に並べる） */
+const VLINE_COLUMN = Array.from({ length: SPLIT_MAX_VISIBLE }, () => '│').join(
+  '\n',
+)
 
 /** プレビュー（render-screens.ts）と共有する画面ビューモデル。モックの JSON 構造と同形 */
 export interface NearbyView {
@@ -101,19 +110,26 @@ export function gourmetNearbySplit(
   const now = new Date()
   const view = gourmetNearbyView(snapshot, nav)
   const bar = statusBarLines(now)[0].text
-  const layout = { headerHeight: SPLIT_HEADER_PX, leftWidth: SPLIT_LEFT_PX }
+  const layout = {
+    headerHeight: SPLIT_HEADER_PX,
+    paneWidths: SPLIT_PANE_WIDTHS,
+  }
   const PREFIX = GLASSES_TEXT_PREFIX
+
+  // ヘッダー 3 行目の罫線（モックの .nb-head border-bottom を実機で再現）。
+  // bar と同じ右端（separator 幅）まで引き、中央の縦線ペインと T 字に交差させる
+  const rule = `${PREFIX}${'─'.repeat(27)}`
 
   if (view === null) {
     const title = `${snapshot.selectedGenre ?? '近くの店'} (${snapshot.originLabel})`
     return {
-      header: `${PREFIX}${bar}\n${PREFIX}${title}`,
-      panes: [`${PREFIX}該当する店がありません`, ''],
+      header: `${PREFIX}${bar}\n${PREFIX}${title}\n${rule}`,
+      panes: [`${PREFIX}該当する店がありません`, VLINE_COLUMN, ''],
       layout,
     }
   }
 
-  const header = `${PREFIX}${bar}\n${PREFIX}${justifyToBarWidth(view.title, view.count)}`
+  const header = `${PREFIX}${bar}\n${PREFIX}${justifyToBarWidth(view.title, view.count)}\n${rule}`
 
   const start = slidingWindowStart(
     view.sel,
@@ -133,7 +149,7 @@ export function gourmetNearbySplit(
   if (view.detail.tel) rightLines.push(`TEL ${view.detail.tel}`)
   rightLines.push(...view.detail.notes)
 
-  return { header, panes: [left, rightLines.join('\n')], layout }
+  return { header, panes: [left, VLINE_COLUMN, rightLines.join('\n')], layout }
 }
 
 export const gourmetNearbyScreen: GlassScreen<AppSnapshot, AppActions> = {
