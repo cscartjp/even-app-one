@@ -3,6 +3,11 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { askBridge } from '../api/bridgeClient'
 import { requestExit } from '../even/bridge'
 import {
+  type MicProbeHandle,
+  type MicProbeStats,
+  startMicProbe,
+} from '../even/mic-probe'
+import {
   type Ctx,
   hermesScreen,
   type Phase,
@@ -33,10 +38,34 @@ export function AppGlasses() {
   const [pageIndex, setPageIndex] = useState(0)
   const [askingLabel, setAskingLabel] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  // Task 3.0 マイク診断の live 結果（probe phase 中のみ非 null）
+  const [probeStats, setProbeStats] = useState<MicProbeStats | null>(null)
 
   // ページ送りは setState の関数更新内で最新の pages 長が要るので ref で参照する
   const pagesRef = useRef(pages)
   pagesRef.current = pages
+  // 起動中のマイク probe ハンドル（停止対象）
+  const probeHandleRef = useRef<MicProbeHandle | null>(null)
+  // マイクは global（audioControl は端末 1 つの toggle）なので、起動/停止を 1 本の
+  // promise chain で直列化する。これをしないと、起動待ち中に再操作したとき古い probe の
+  // 停止 audioControl(false) が新しい probe のマイクを閉じ、gating が false negative に
+  // なり得る（Codex 指摘）。chain で順序を固定すれば mic on/off が交錯しない。
+  const micChainRef = useRef<Promise<void>>(Promise.resolve())
+  const enqueueMic = useCallback((task: () => Promise<void>) => {
+    const next = micChainRef.current.then(task, task)
+    micChainRef.current = next.catch(() => {})
+    return next
+  }, [])
+  // 既存 probe を直列に停止する（mic off）
+  const stopProbe = useCallback(
+    () =>
+      enqueueMic(async () => {
+        const handle = probeHandleRef.current
+        probeHandleRef.current = null
+        if (handle) await handle.stop()
+      }),
+    [enqueueMic],
+  )
 
   const ask = useCallback(async (q: PresetQuestion) => {
     setAskingLabel(q.label)
@@ -66,18 +95,34 @@ export function AppGlasses() {
     if (n > 0) setPageIndex((i) => (i - 1 + n) % n)
   }, [])
   const back = useCallback(() => {
+    // probe 中なら直列 chain でマイクを閉じる（UI は即 idle へ）
+    void stopProbe()
+    setProbeStats(null)
     setPages([])
     setPageIndex(0)
     setAskingLabel(null)
     setErrorMsg(null)
     setPhase('idle')
-  }, [])
+  }, [stopProbe])
   const exit = useCallback(() => {
     void requestExit()
   }, [])
 
-  const ctxRef = useRef<Ctx>({ ask, nextPage, prevPage, back, exit })
-  ctxRef.current = { ask, nextPage, prevPage, back, exit }
+  // Task 3.0 gating spike: マイク診断を開始する（暫定）
+  const probe = useCallback(() => {
+    setProbeStats(null)
+    setPhase('probe')
+    void enqueueMic(async () => {
+      // 念のため既存 probe を閉じてから開始（重なり防止）
+      const prev = probeHandleRef.current
+      probeHandleRef.current = null
+      if (prev) await prev.stop()
+      probeHandleRef.current = await startMicProbe(setProbeStats)
+    })
+  }, [enqueueMic])
+
+  const ctxRef = useRef<Ctx>({ ask, probe, nextPage, prevPage, back, exit })
+  ctxRef.current = { ask, probe, nextPage, prevPage, back, exit }
 
   // 毎レンダーで新しい snapshot を作り ref に格納する（参照変化＝再描画トリガ）
   const snapshotRef = useMemo(() => ({ current: null as Snapshot | null }), [])
@@ -88,6 +133,7 @@ export function AppGlasses() {
     pages,
     pageIndex,
     errorMsg,
+    probeStats,
   }
 
   const getSnapshot = useCallback(

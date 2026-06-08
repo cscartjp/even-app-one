@@ -3,7 +3,7 @@
 作成日: 2026-06-08
 
 新規アプリ。Even G2 から Mac 上の Hermes Agent へ **テキストで問い合わせ → G2 に回答表示** する薄いブリッジ（Phase 1 テキスト PoC）。
-音声 / STT / TTS / 常用化（Tunnel・HTTPS・JWT）は本計画のスコープ外（仕様書 §13 の Phase 2 以降）。
+**Phase 3（2026-06-08 追加）で「G2 マイク音声入力 → STT → Hermes 回答表示」を実装範囲に追加**（仕様書 §13 Phase 3 / §9.1 / §5.2）。TTS / 常用化（Tunnel・HTTPS・JWT）は引き続きスコープ外（仕様書 §13 Phase 4 以降）。
 
 - **product contract（正本）**: `docs/spec/g2-hermes-bridge.md`（デスクトップ仕様書を 2026-06-08 にリポジトリへ取り込み。Phase 1 はこの §1〜§8・§11・§13 Phase 1・§16 を正解条件とする）
 - **precedence**: `docs/spec/g2-hermes-bridge.md` > 本 `Plans.md`
@@ -89,6 +89,39 @@ Hermes Agent API Server（`hermes gateway`）
 - [x] Mac B（Hermes 同居機）の Tailscale IP（whitelist 用）: 確定済み。**実値は公開 repo に書かずローカルにのみ保持**し、`app.json` は placeholder（`100.64.0.1`）を commit、`evenhub pack` 前にローカルで実 IP へ置換（B-1）
 - [ ] Hermes 応答の実レイテンシ（ツール実行時）: （1.1/1.5 で記録）
 
+## Phase 3: G2 音声入力（STT）— v0.2.0 目標
+
+> 追加日: 2026-06-08（`/harness-work 3.0` 起点）。**team_validation_mode: `subagent`**（Explore で even-toolkit audio API、general-purpose で 権限/レイテンシ/転送方式リスクを 2026-06-08 に検証。2 視点が独立に「案C=サーバ側STT が最小変更」「実機マイク権限が最大リスクで gating spike 必須」へ収束）。
+
+**アーキテクチャ（確定）**: G2 マイク → even-toolkit `GlassBridgeSource`（`audioControl` 経由で生 PCM 取得）→ WebView でバッファ → **録音終了時に単発アップロード**（HTTP チャンク連打 / WebSocket は不採用）→ Bridge `POST /v1/stt`（Bearer 認証・proxy）→ **Mac B の warm mlx-whisper サイドカー**（`whisper-large-v3-mlx`・モデル1回ロード常駐）→ transcript → **既存 `/v1/ask` で Hermes**（Phase 1 の検証済みパスを無改変で再利用）→ pages 表示。音声・STT は **Mac B ローカル完結で外部送信ゼロ**（案C: API キー不要・課金ゼロ・プライバシー◎。memory `stt-mac-b-mlx-whisper`）。
+
+### 設計上の正本差分（仕様書 §5.2/§7.2/§9.1 からの読み替え）
+
+| 仕様書サンプル | 本アプリ（確定） | 根拠 |
+|---|---|---|
+| 生 SDK `audioControl`+`onEvenHubEvent` 直叩き | even-toolkit `GlassBridgeSource`（`onAudioData` で PCM 取得）+ `float32ToWav`/`createVAD` を部品利用 | Explore 検証（`node_modules/even-toolkit/stt/sources/glass-bridge.ts` 他） |
+| `/v1/audio/start`+`/chunk`(100回/秒連打)+`/finish` の 3 エンドポイント | 単発 `POST /v1/stt`（録音終了時に全 PCM/WAV を 1 回 POST。≤15秒≈640KB base64 で 1 POST 可）。transcript を返し、Hermes は既存 `/v1/ask` を再利用 | Skeptic 検証（チャンク連打は欠落/順序逆転・§19 WebSocket 不安定） |
+| STT 候補: Whisper API / Groq / faster-whisper | Mac B 既設 **mlx-whisper warm サイドカー**（案C） | ユーザー確定（memory `stt-mac-b-mlx-whisper`） |
+| even-toolkit `useSTT`+`whisper-api` プロバイダ | **不採用**（whisper-api は OpenAI URL ハードコード・apiKey 必須で Mac B サイドカーを指せない） | Explore 検証（`providers/whisper-api.ts`） |
+
+**Spec delta（Phase 3, 2026-06-08）**: product contract（`docs/spec/g2-hermes-bridge.md` §13 Phase 3 / §9.1 / §5.2）は音声入力を既に定義済み。本 Plans.md は **API 形（単発 `/v1/stt` 1 エンドポイント）・STT 実体（Mac B mlx-whisper サイドカー）・取得経路（even-toolkit GlassBridgeSource）を上書き確定**する（precedence: spec > Plans だが、実装読み替えは本表で明示）。ユーザー可視の振る舞い（音声で質問→回答表示）は spec から不変。
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.0 | **[gating spike]** マイク権限 + PCM 受信の実機 de-risk。g2hermes に一時マイク probe（`GlassBridgeSource` で `audioControl(true)` → 受信 PCM の `typeof`/`byteLength`/先頭バイトを glass テキスト表示 + `console.log`）を最小実装。Hub In-Development で**ユーザーが実機確認**。**`audioPcm` が届かなければ GPS 前例（memory `reference_hub_dev_mode`）同様の権限ブロックとして Phase 3 を停止しユーザー判断へ** [tdd:skip:hardware-spike] | 実機で `audioPcm` が `Uint8Array`（byteLength>0）で届くことをユーザーがログ/表示で確認 **または** 届かないことを確認して GitHub issue 化し停止。結果を下記検証メモに記録 | 1.5 | cc:WIP |
+| 3.1 | **[spike]** PCM 形式確定。3.0 の生 PCM をダンプし sampleRate/signed/endian/channel を確定。ダンプ→WAV(s16le 16kHz mono)→再生で肉声確認し、Bridge 側 WAV 化方式（ヘッダ生成 or ffmpeg）を決める [tdd:skip:hardware-spike] | PCM 実形式を検証メモに記録。ダンプ PCM から生成した WAV が再生可能で肉声と一致 | 3.0 | cc:TODO |
+| 3.2 | **Mac B STT warm サイドカー**。mlx-whisper（`whisper-large-v3-mlx`）をモデル warm 常駐する最小 HTTP サービス `servers/stt-sidecar`（`.venv` 3.12・`POST /v1/audio/transcriptions` で WAV/multipart → `{text}`・日本語指定・幻覚リピート除去流用）。launchd plist は既存 Bridge plist と同様に repo 配置（memory `feedback-keep-deploy-artifacts-in-repo`）。warm 推論レイテンシ計測 [tdd:required] | サイドカー起動でモデル 1 回ロード、WAV POST で日本語 transcript 返却、15秒音声の warm 推論レイテンシを検証メモに記録（目標 ≤ 数秒）。pure 変換部は単体テスト | 3.1 | cc:TODO |
+| 3.3 | **Bridge `/v1/stt` ルート + STT proxy**。受信音声（単発: WAV or PCM base64）→（PCM なら WAV 化）→ Mac B サイドカーへ proxy → `{transcript}` 返却。Bearer 認証・`AbortController` タイムアウト・処理後バッファ即削除。`config.ts` に `STT_BASE_URL`/`STT_TIMEOUT_MS` 追加。Hermes は無改変の既存 `/v1/ask` を client が続けて呼ぶ [tdd:required] | `bun test` グリーン（inject: 認証401・タイムアウト504系・proxy mock で transcript 返却・処理後バッファ削除）、`biome check` 0、`bun run build` 成功 | 3.1, 3.2 | cc:TODO |
+| 3.4 | **g2hermes 音声入力 UI**（even-toolkit `GlassBridgeSource`）。idle メニューに「🎤 音声で質問」追加 → 録音開始（"Listening…"）→ 終了ジェスチャで `audioControl(false)` → PCM 結合 → `/v1/stt` POST → 「聞き取り: <transcript>」表示 → 既存 `askBridge`(/v1/ask) で回答ページ。`AbortController` タイムアウト。プレビュー/シミュレーターは getUserMedia フォールバック or スキップ [tdd:skip:integration-simulator] | `bun run build` 成功・`biome check` 0。シミュレーターで状態遷移（idle→listening→transcribing→answer）動作（実音声は 3.5） | 3.0, 3.3 | cc:TODO |
+| 3.5 | **実機 E2E + v0.2.0 パッケージング**。実機 G2 で「音声で質問→Listening→聞き取り表示→Hermes 回答表示」を達成。実レイテンシ記録・秘密境界（音声/STT が Mac B ローカル完結・外部送信ゼロ）確認・`evenhub pack` で `g2hermes-v0.2.0.ehpk` 生成 [tdd:skip:integration-e2e] | 実機で音声→回答が表示、実レイテンシを検証メモに記録、`.ehpk`(v0.2.0) 生成。実機最終確認はユーザー実施 | 3.4 | cc:TODO |
+
+### 検証メモ（Phase 3・記入用）
+
+- [ ] 実機マイク権限: `audioControl(true)` で `audioEvent.audioPcm` が届くか（3.0・GPS 前例との差を確認）
+- [ ] PCM 実形式: sampleRate / signed / endian / channel（3.1）
+- [ ] warm mlx-whisper の実レイテンシ（15秒音声・3.2）
+- [ ] 実機 E2E レイテンシ（音声→回答・3.5）
+
 ## 制約
 
 - **`apps/hisho/` は一切改変しない**（読み取り・参照のみ。ユーザー指示 2026-06-08）。`apps/hisho/preview/design-mock.html` は保護ファイル。
@@ -97,6 +130,8 @@ Hermes Agent API Server（`hermes gateway`）
 - app.json の network whitelist は **CORS 回避ではない**。Bridge 側で CORS ヘッダ + OPTIONS 応答が別途必要。whitelist は **ポート込み full origin**・wildcard/bare hostname 不可。
 - 秘密情報: `HERMES_API_KEY` を WebView に出さない。Bridge Token と Hermes Key を分ける。`.env` は gitignore、`change-me-local-dev` を実値に置換。
 - コード作業前に `andrej-karpathy-skills:karpathy-guidelines` スキルを必ず invoke すること（hisho 計画と同規約）。
+- **実装プロセス（ユーザー指示 2026-06-08）**: 実装開始時はブランチを切る（main に直接コミットしない）。**PR を出す前に Codex Review（公式 `/codex:review` 正規ルート）を必ず通す**。
+- **Phase 3 の gating**: マイク権限（`g2-microphone` / `audioControl`）が実機で取れるかを 3.0 で最優先に確認する。GPS 権限が実機で取れなかった前例（memory `reference_hub_dev_mode`）があるため、3.0 が失敗したら Phase 3 を停止しユーザー判断へ上げる（パイプラインを先に作らない）。
 
 ### Notes
 
