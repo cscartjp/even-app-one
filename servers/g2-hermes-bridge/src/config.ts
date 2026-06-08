@@ -18,6 +18,12 @@ export interface BridgeConfig {
    * 実 WebView の Origin を採取後（Task 1.5）に allowlist 化する（仕様書 §15.1）。
    */
   corsAllowedOrigins: true | string[]
+  /** STT サイドカーのベース URL（loopback、`/transcribe` まで含めない）。 */
+  sttBaseUrl: string
+  /** Bridge→STT fetch のタイムアウト（ms）。STT は重いため Hermes より長め。超過で 504。 */
+  sttTimeoutMs: number
+  /** `/v1/transcribe` の WAV ボディ上限（bytes）。超過で 413。 */
+  transcribeMaxBytes: number
 }
 
 /** 環境変数から設定を読む。未設定・不正値はローカル開発向けの既定値にフォールバックする。 */
@@ -29,6 +35,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     hermesApiKey: env.HERMES_API_KEY ?? 'change-me-local-dev',
     hermesTimeoutMs: toPositiveInt(env.HERMES_TIMEOUT_MS, 30000),
     corsAllowedOrigins: parseOrigins(env.CORS_ALLOWED_ORIGINS),
+    sttBaseUrl: env.STT_BASE_URL ?? 'http://127.0.0.1:8643',
+    sttTimeoutMs: toPositiveInt(env.STT_TIMEOUT_MS, 60000),
+    transcribeMaxBytes: toPositiveInt(
+      env.TRANSCRIBE_MAX_BYTES,
+      2 * 1024 * 1024,
+    ),
   }
 }
 

@@ -7,6 +7,23 @@ describe('loadConfig', () => {
     expect(c.port).toBe(8787)
     expect(c.hermesTimeoutMs).toBe(30000)
     expect(c.bridgeToken).toBe('dev-token')
+    expect(c.sttBaseUrl).toBe('http://127.0.0.1:8643')
+    expect(c.sttTimeoutMs).toBe(60000)
+    expect(c.transcribeMaxBytes).toBe(2 * 1024 * 1024)
+  })
+
+  test('STT 設定は env で上書き・不正値は既定値にフォールバック', () => {
+    expect(loadConfig({ STT_BASE_URL: 'http://stt:9' }).sttBaseUrl).toBe(
+      'http://stt:9',
+    )
+    expect(loadConfig({ STT_TIMEOUT_MS: '5000' }).sttTimeoutMs).toBe(5000)
+    expect(loadConfig({ STT_TIMEOUT_MS: 'x' }).sttTimeoutMs).toBe(60000)
+    expect(
+      loadConfig({ TRANSCRIBE_MAX_BYTES: '1024' }).transcribeMaxBytes,
+    ).toBe(1024)
+    expect(loadConfig({ TRANSCRIBE_MAX_BYTES: '0' }).transcribeMaxBytes).toBe(
+      2 * 1024 * 1024,
+    )
   })
 
   test('不正な PORT / HERMES_TIMEOUT_MS は既定値にフォールバック', () => {
