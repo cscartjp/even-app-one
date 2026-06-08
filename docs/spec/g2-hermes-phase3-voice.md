@@ -156,8 +156,8 @@ answer    … paginateForG2 でページ表示（Next / ダブルタップで戻
 ## 9. 未確認・実装前/実機で確定する点
 
 - [x] even-toolkit/stt の **buffer API の正確な関数名**（`createAudioBuffer` / `append` / `getAll` / `getWav` 等）を確認（**Task 3.3.1・2026-06-09 確定**。実体は §9.1 に記録）。
-- [ ] `float32ToWav` の出力 WAV を **mlx-whisper がそのまま読めるか**（16kHz mono PCM WAV）。読めない場合はサイドカー側で soundfile/ffmpeg 経由ロード。
-- [ ] サイドカーのモデルロード時間と1発話あたりの**実文字起こしレイテンシ**を実測（Bridge タイムアウト値の根拠に）。
+- [x] `float32ToWav` の出力 WAV を **mlx-whisper がそのまま読めるか**（16kHz mono PCM WAV）→ **読める**（Task 3.1.1・2026-06-09）。サイドカーは Python 標準 `wave` モジュールで decode（`audio.decode_wav`）。even-toolkit の実出力（`float32ToWav` を bun で生成）を `decode_wav` に通し、8000 samples・float32・range 一致を直接確認。soundfile/ffmpeg は不要。
+- [x] サイドカーのモデルロード時間と1発話あたりの**実文字起こしレイテンシ**を実測（Task 3.1.1・2026-06-09・Mac B macbook-air2025）: **warm（cache 済みモデルのロード+初回推論）≒15s** で `/health` loaded=true。**1.94s 発話（`say -v Kyoko`）の文字起こし ≒1290ms**。常駐 RSS ≒3.48GB（32GB 中・Hermes 同居・swap 0）。→ Bridge `STT_TIMEOUT_MS` 既定 60s は実測の十分上。streaming 等で長尺化したら P95×2 を 3.5.1 で再評価。
 - [ ] 実機 WebView の `audioEvent.audioPcm` が**実際に届くか**（Phase 1 同様、まず origin/イベント実値をログ採取）。シミュレーターは Mac マイク代替。
 - [ ] `g2-microphone` permission 付与時の Hub/サイドロードでの**マイク許可フロー**（GPS 権限がサイドロード不可だった件＝memory `reference_hub_dev_mode` の二の舞にならないか要確認）。
 
