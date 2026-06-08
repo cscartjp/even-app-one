@@ -1,0 +1,11 @@
+node_modules
+dist
+*.tsbuildinfo
+
+# Environment（実値。テンプレートの env.example は追跡する）
+.env
+.env.*
+
+# Logs / OS
+*.log
+.DS_Store
