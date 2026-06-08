@@ -47,6 +47,28 @@ export function statusBarLines(now: Date = new Date()): DisplayLine[] {
   return [line(`${left}${' '.repeat(spaces)}${right}`), line('', 'separator')]
 }
 
+const ELLIPSIS = '…'
+const ELLIPSIS_PX = getTextWidth(ELLIPSIS)
+
+/**
+ * テキストを最大ピクセル幅に収まるよう省略する。
+ * 超過時は「…」を付け、「…」込みで maxPx を超えない側に丸める。
+ * 幅は @evenrealities/pretext の getTextWidth（LVGL 実機レンダリングと一致）。
+ */
+export function truncateByPixel(text: string, maxPx: number): string {
+  if (getTextWidth(text) <= maxPx) return text
+  const limit = maxPx - ELLIPSIS_PX
+  let width = 0
+  let out = ''
+  for (const ch of text) {
+    const w = getTextWidth(ch)
+    if (width + w > limit) break
+    out += ch
+    width += w
+  }
+  return out + ELLIPSIS
+}
+
 export interface AppSnapshot {
   menuItems: MenuItem[]
   flashPhase: boolean
