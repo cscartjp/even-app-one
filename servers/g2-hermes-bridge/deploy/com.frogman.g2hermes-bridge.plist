@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.frogman.g2hermes-bridge</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yoshiura/.bun/bin/bun</string>
+        <string>src/index.ts</string>
+    </array>
+
+    <!-- Bun は WorkingDirectory から .env を自動読込する -->
+    <key>WorkingDirectory</key>
+    <string>/Users/yoshiura/dev/even-app-one/servers/g2-hermes-bridge</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/yoshiura/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- ログイン時に起動 -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- 常駐サーバーなので常に再起動（clean exit も異常とみなし復帰させる） -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- 起動失敗が続いた場合の再起動間引き（既定 10 秒より保守的に）。タイトな再起動ループ・ログ肥大を防ぐ -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/yoshiura/g2bridge.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/yoshiura/g2bridge.err</string>
+</dict>
+</plist>
