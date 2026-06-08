@@ -29,6 +29,7 @@ Hermes Agent API Server（`hermes gateway`）
 - **モノレポ構成**: ルート `package.json` の `workspaces` を `apps/*` → `["apps/*", "servers/*"]` に拡張。
 - **G2 クライアント**: 既存 `apps/hisho` と同じ **even-toolkit + Vite + TS + React** で統一（生 SDK は使わない）。
 - **秘密情報の境界**: Hermes API Key は Mac の `.env` のみ。WebView には Bridge Token（弱い秘密・ビルドに焼き込まれる前提）だけを渡す。
+- **デプロイ・トポロジ（2026-06-08 確定 = 構成 B-1）**: Bridge と Hermes は**同一 Mac（Mac B = Hermes が動く Mac）に同居**。phone→Bridge は Mac B の Tailscale IP へ Tailscale 直（`http://<MacB-Tailscale-IP>:8787`）、Bridge→Hermes は同マシン loopback（`http://127.0.0.1:8642/v1`）で **SSH トンネル不要**。コードは開発機（Mac A）から `servers/g2-hermes-bridge` を rsync 配置し `bun src/index.ts` で起動（常時自動起動は issue #20 で launchd plist 化）。`app.json` の whitelist は **placeholder（`100.64.0.1`）を commit し、`evenhub pack` 前にローカルで Mac B の実 Tailscale IP に置換**する（実 IP は公開 repo に出さない）。※当初 Mac A から SSH トンネルで Hermes へ繋ぎ 1.1/1.3 を live 検証したが、Mac A 非依存の要望により最終構成は本同居とし Mac A・トンネルを廃止。
 
 ### 設計上の正本差分（仕様書 §7 サンプルからの読み替え）
 
@@ -69,9 +70,9 @@ Hermes Agent API Server（`hermes gateway`）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 1.1 | Hermes API Server 有効化 + 契約 smoke（コードではなく手順 + 確認）。`~/.hermes/.env` に `API_SERVER_ENABLED=true` / `API_SERVER_KEY=<実値>`、`hermes gateway` 起動、`curl /v1/responses` で応答取得 [tdd:skip:external-setup] | `curl http://127.0.0.1:8642/v1/responses`（Bearer 付き）が 200 で `output[].content[].type==='output_text'` を含む。`function_call` 混入応答でも本文が取れることを1回確認。`previous_response_id` で2ターン会話継続を確認。`API_SERVER_KEY` は `change-me-local-dev` のままにしない | 0.2 | cc:TODO |
+| 1.1 | Hermes API Server 有効化 + 契約 smoke（コードではなく手順 + 確認）。`~/.hermes/.env` に `API_SERVER_ENABLED=true` / `API_SERVER_KEY=<実値>`、`hermes gateway` 起動、`curl /v1/responses` で応答取得 [tdd:skip:external-setup] | `curl http://127.0.0.1:8642/v1/responses`（Bearer 付き）が 200 で `output[].content[].type==='output_text'` を含む。`function_call` 混入応答でも本文が取れることを1回確認。`previous_response_id` で2ターン会話継続を確認。`API_SERVER_KEY` は `change-me-local-dev` のままにしない | 0.2 | cc:完了（2026-06-08 live: Mac B で `hermes gateway` 稼働・`/v1/responses` 200・実応答が `function_call`+`function_call_output`+`message` 混在でも `output_text` 抽出・`previous_response_id` で2ターン継続・`API_SERVER_KEY` は実値で Bridge `.env` と SHA256 一致） |
 | 1.2 | Bridge ピュア関数を **TDD** で実装: `extractOutputText`（`message`/`output_text` 抽出・`function_call` スキップ）/ `paginateForG2`（90字・空白正規化）/ 日本語を含む長文の分割 [tdd:required] | `bun test` グリーン。`function_call`+`message` 混在の実レスポンス JSON フィクスチャで本文のみ抽出。日本語90字超が複数ページに分割され各ページ ≤90字 | 0.2 | cc:完了 [dd00ecb] |
-| 1.3 | Bridge ルート実装: `GET /health`（自身 + Hermes 到達性 `checkHermes`）/ `POST /v1/ask`（zod 検証・`Bearer` 認証・`previous_response_id` セッション・short instructions）。**CORS は OPTIONS と /health を認証スキップ**し preflight を壊さない。`origin` をログ採取。Bridge→Hermes に `AbortController` タイムアウト [tdd:skip:integration-curl] | `curl` で: トークン無 `/v1/ask` が 401 / 正規トークンで 200 + `pages` 返却 / `OPTIONS /v1/ask`（Origin+Access-Control-Request-* 付き）が 200/204 で CORS ヘッダ付与 / Hermes 停止時に分かるエラー / タイムアウト超過で 504 系。`biome check` 0、`bun run build` 成功 | 1.1, 1.2 | cc:完了 [a403f6b]（route 挙動は inject 統合テスト20本で検証。実 Hermes 相手の live curl は Mac B 稼働後に 1.1/1.5 で確認） |
+| 1.3 | Bridge ルート実装: `GET /health`（自身 + Hermes 到達性 `checkHermes`）/ `POST /v1/ask`（zod 検証・`Bearer` 認証・`previous_response_id` セッション・short instructions）。**CORS は OPTIONS と /health を認証スキップ**し preflight を壊さない。`origin` をログ採取。Bridge→Hermes に `AbortController` タイムアウト [tdd:skip:integration-curl] | `curl` で: トークン無 `/v1/ask` が 401 / 正規トークンで 200 + `pages` 返却 / `OPTIONS /v1/ask`（Origin+Access-Control-Request-* 付き）が 200/204 で CORS ヘッダ付与 / Hermes 停止時に分かるエラー / タイムアウト超過で 504 系。`biome check` 0、`bun run build` 成功 | 1.1, 1.2 | cc:完了 [a403f6b]（route 挙動は inject 統合テスト20本で検証。実 Hermes 相手の live curl は 2026-06-08 に B-1 同居構成で確認済み: `/health`→`hermes:"reachable"`・`/v1/ask` 200+`pages`・トークン無401・OPTIONS preflight 204+CORS・sessionId で会話継続） |
 | 1.4 | G2 クライアント実装（even-toolkit）: `api/bridgeClient.ts`（`/v1/ask` fetch・Bearer・`AbortController` タイムアウト）+ Ask/Next/Exit メニュー画面（`GlassScreen` の display/action）+ App で Hermes 呼び出しを **React state 経由**（idle→Thinking→回答ページ）に配線。Next でページ送り、ダブルタップで戻る/終了 [tdd:skip:integration-simulator] | `bun run build` 成功・`biome check` 0。シミュレーターで Ask→"Thinking…"→回答表示、↕でメニュー移動、Next で次ページ、ダブルタップで戻る、を確認 | 0.3, 1.3 | cc:TODO |
 | 1.5 | エンドツーエンド検証 + v0.1.0 パッケージング。実機 WebView の `Origin` 実値を採取し CORS 方針を確定、preflight 通過・タイムアウト挙動・会話継続・秘密境界（Hermes Key が WebView/通信に出ない）を確認。app.json whitelist は **Tailscale IP の full origin（`http://100.x.x.x:PORT`）のみ**記載（LAN IP は使わない）、`bun run build` + `evenhub pack` で `.ehpk` 生成 [tdd:skip:integration-e2e] | Hub In-Development or sideload 経由で G2 に Hermes 回答が表示される。`req.headers.origin` 実値を計画ノートに記録。`g2hermes.ehpk` 生成。実機最終確認はユーザー実施 | 1.4 | cc:TODO |
 
@@ -84,8 +85,8 @@ Hermes Agent API Server（`hermes gateway`）
 
 ### 検証メモ（記入用）
 
-- [ ] 実機 WebView の `Origin` 実値: （1.5 で記録）
-- [ ] Mac の Tailscale IP（whitelist 用・`100.x.x.x`）: （1.5 で記録）
+- [ ] 実機 WebView の `Origin` 実値: （1.5 で記録）。**mixed content 注意**: Phase 1 は意図的に `http://` over Tailscale（HTTPS 化は仕様書 §13 Phase 2+ のスコープ）。1.5 で採取した Origin が `https://` 系だった場合、WebView は `http://` への `fetch` を mixed content でブロックし得る（`docs/guides/06-networking.md`）。その時は Tailscale Serve / `*.ts.net` で Bridge を HTTPS 提供し whitelist を `https://...` に寄せる方針へ切替（Phase 1 PoC の HTTP 前提が崩れる唯一の分岐点）。
+- [x] Mac B（Hermes 同居機）の Tailscale IP（whitelist 用）: 確定済み。**実値は公開 repo に書かずローカルにのみ保持**し、`app.json` は placeholder（`100.64.0.1`）を commit、`evenhub pack` 前にローカルで実 IP へ置換（B-1）
 - [ ] Hermes 応答の実レイテンシ（ツール実行時）: （1.1/1.5 で記録）
 
 ## 制約
