@@ -3,7 +3,7 @@
 作成日: 2026-06-08
 
 新規アプリ。Even G2 から Mac 上の Hermes Agent へ **テキストで問い合わせ → G2 に回答表示** する薄いブリッジ（Phase 1 テキスト PoC）。
-**Phase 3（2026-06-08 追加）で「G2 マイク音声入力 → STT → Hermes 回答表示」を実装範囲に追加**（仕様書 §13 Phase 3 / §9.1 / §5.2）。TTS / 常用化（Tunnel・HTTPS・JWT）は引き続きスコープ外（仕様書 §13 Phase 4 以降）。
+音声 / STT / TTS / 常用化（Tunnel・HTTPS・JWT）は本計画のスコープ外（仕様書 §13 の Phase 2 以降）。
 
 - **product contract（正本）**: `docs/spec/g2-hermes-bridge.md`（デスクトップ仕様書を 2026-06-08 にリポジトリへ取り込み。Phase 1 はこの §1〜§8・§11・§13 Phase 1・§16 を正解条件とする）
 - **precedence**: `docs/spec/g2-hermes-bridge.md` > 本 `Plans.md`
@@ -89,43 +89,61 @@ Hermes Agent API Server（`hermes gateway`）
 - [x] Mac B（Hermes 同居機）の Tailscale IP（whitelist 用）: 確定済み。**実値は公開 repo に書かずローカルにのみ保持**し、`app.json` は placeholder（`100.64.0.1`）を commit、`evenhub pack` 前にローカルで実 IP へ置換（B-1）
 - [ ] Hermes 応答の実レイテンシ（ツール実行時）: （1.1/1.5 で記録）
 
-## Phase 3: G2 音声入力（STT）— v0.2.0 目標
+## Phase 3: 音声入力（G2マイク → ローカル STT → Hermes）
 
-> 追加日: 2026-06-08（`/harness-work 3.0` 起点）。**team_validation_mode: `subagent`**（Explore で even-toolkit audio API、general-purpose で 権限/レイテンシ/転送方式リスクを 2026-06-08 に検証。2 視点が独立に「案C=サーバ側STT が最小変更」「実機マイク権限が最大リスクで gating spike 必須」へ収束）。
+> **Spec delta（2026-06-08・承認済み）**: product contract `docs/spec/g2-hermes-bridge.md` §13 Phase 3 を具体化する設計デルタを `docs/spec/g2-hermes-phase3-voice.md` として新設。precedence: `g2-hermes-bridge.md` > `g2-hermes-phase3-voice.md` > 本 `Plans.md`。Phase 1 資産（`/v1/ask`・`paginateForG2`・session）は**無改変再利用**。
+>
+> **team_validation_mode**: `subagent`（2026-06-08。Explore×2 で even-toolkit/stt・SDK 型を一次照合〔判定D: provider はクラウド固定・`GlassBridgeSource` で生 PCM 取得〕、Skeptic/Security/QA 複合レビューで分解を検証〔BLOCKER2/HIGH5/MEDIUM5 を反映〕。Product/Architecture は brainstorming で user 承認）。harness-mem 照合済: `stt-mac-b-mlx-whisper` / `reference_hub_dev_mode` / `g2-sideload-workflow` / `feedback-keep-deploy-artifacts-in-repo`。
+>
+> **ゲート方針**: **3.0（実機マイク到達性）が通るまでサイドカー本実装 3.1.1 以降の重い投資は本格化しない**。3.0 が blocked の場合、並列安全タスク（3.1.0 / 3.3.1 / 3.4.1 / 3.2.1 のルート骨格）のみ前進し、代替（`phone-microphone` 等）を検討。
+>
+> **lint/format baseline**: TS = biome（既存）。Python サイドカーは新規のため 3.1.0 で ruff/pytest を先行設置。
+> **前提**: Phase 1 の Bridge が Mac B で launchd 稼働中。Phase 3 は既存 `servers/g2-hermes-bridge` にルート追加 + 新規 STT サイドカー。
 
-> **バージョン方針**: v0.1.0 は実機にインストール済みのため、同一バージョンだと G2 がアップデートを認識しない。実機に載せる中間ビルド（3.0〜3.4）は `app.json` の `version` を**パッチバンプ**（0.1.1, 0.1.2, …）して pack する。`0.2.0` は Phase 3 完了（3.5）のリリース版に温存。実 IP は placeholder のみ commit し pack 前にローカルで置換する既存運用は維持。
-
-**アーキテクチャ（確定）**: G2 マイク → even-toolkit `GlassBridgeSource`（`audioControl` 経由で生 PCM 取得）→ WebView でバッファ → **録音終了時に単発アップロード**（HTTP チャンク連打 / WebSocket は不採用）→ Bridge `POST /v1/stt`（Bearer 認証・proxy）→ **Mac B の warm mlx-whisper サイドカー**（`whisper-large-v3-mlx`・モデル1回ロード常駐）→ transcript → **既存 `/v1/ask` で Hermes**（Phase 1 の検証済みパスを無改変で再利用）→ pages 表示。音声・STT は **Mac B ローカル完結で外部送信ゼロ**（案C: API キー不要・課金ゼロ・プライバシー◎。memory `stt-mac-b-mlx-whisper`）。
-
-### 設計上の正本差分（仕様書 §5.2/§7.2/§9.1 からの読み替え）
-
-| 仕様書サンプル | 本アプリ（確定） | 根拠 |
-|---|---|---|
-| 生 SDK `audioControl`+`onEvenHubEvent` 直叩き | even-toolkit `GlassBridgeSource`（`onAudioData` で PCM 取得）+ `float32ToWav`/`createVAD` を部品利用 | Explore 検証（`node_modules/even-toolkit/stt/sources/glass-bridge.ts` 他） |
-| `/v1/audio/start`+`/chunk`(100回/秒連打)+`/finish` の 3 エンドポイント | 単発 `POST /v1/stt`（録音終了時に全 PCM/WAV を 1 回 POST。≤15秒≈640KB base64 で 1 POST 可）。transcript を返し、Hermes は既存 `/v1/ask` を再利用 | Skeptic 検証（チャンク連打は欠落/順序逆転・§19 WebSocket 不安定） |
-| STT 候補: Whisper API / Groq / faster-whisper | Mac B 既設 **mlx-whisper warm サイドカー**（案C） | ユーザー確定（memory `stt-mac-b-mlx-whisper`） |
-| even-toolkit `useSTT`+`whisper-api` プロバイダ | **不採用**（whisper-api は OpenAI URL ハードコード・apiKey 必須で Mac B サイドカーを指せない） | Explore 検証（`providers/whisper-api.ts`） |
-
-**Spec delta（Phase 3, 2026-06-08）**: product contract（`docs/spec/g2-hermes-bridge.md` §13 Phase 3 / §9.1 / §5.2）は音声入力を既に定義済み。本 Plans.md は **API 形（単発 `/v1/stt` 1 エンドポイント）・STT 実体（Mac B mlx-whisper サイドカー）・取得経路（even-toolkit GlassBridgeSource）を上書き確定**する（precedence: spec > Plans だが、実装読み替えは本表で明示）。ユーザー可視の振る舞い（音声で質問→回答表示）は spec から不変。
+### Phase 3.0: ゲート（実機マイク到達性スパイク）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 3.0 | **[gating spike]** マイク権限 + PCM 受信の実機 de-risk。g2hermes に一時マイク probe（`GlassBridgeSource` で `audioControl(true)` → 受信 PCM の `typeof`/`byteLength`/先頭バイトを glass テキスト表示 + `console.log`）を最小実装。Hub In-Development で**ユーザーが実機確認**。**`audioPcm` が届かなければ GPS 前例（memory `reference_hub_dev_mode`）同様の権限ブロックとして Phase 3 を停止しユーザー判断へ** [tdd:skip:hardware-spike] | 実機で `audioPcm` が `Uint8Array`（byteLength>0）で届くことをユーザーがログ/表示で確認 **または** 届かないことを確認して GitHub issue 化し停止。結果を下記検証メモに記録 | 1.5 | cc:完了（2026-06-09 実機確認OK: g2hermes v0.1.1 を実機 G2 にインストール→「🎤 マイク診断」で `audioControl` 起動OK・`PCM events`/`bytes` が増加。**GPS 前例の権限ブロックは不発＝マイクは動く**。PR #27） |
-| 3.1 | **[spike]** PCM 形式確定。3.0 の生 PCM をダンプし sampleRate/signed/endian/channel を確定。ダンプ→WAV(s16le 16kHz mono)→再生で肉声確認し、Bridge 側 WAV 化方式（ヘッダ生成 or ffmpeg）を決める [tdd:skip:hardware-spike] | PCM 実形式を検証メモに記録。ダンプ PCM から生成した WAV が再生可能で肉声と一致 | 3.0 | cc:TODO |
-| 3.2 | **Mac B STT warm サイドカー**。mlx-whisper（`whisper-large-v3-mlx`）をモデル warm 常駐する最小 HTTP サービス `servers/stt-sidecar`（`.venv` 3.12・`POST /v1/audio/transcriptions` で WAV/multipart → `{text}`・日本語指定・幻覚リピート除去流用）。launchd plist は既存 Bridge plist と同様に repo 配置（memory `feedback-keep-deploy-artifacts-in-repo`）。warm 推論レイテンシ計測 [tdd:required] | サイドカー起動でモデル 1 回ロード、WAV POST で日本語 transcript 返却、15秒音声の warm 推論レイテンシを検証メモに記録（目標 ≤ 数秒）。pure 変換部は単体テスト | 3.1 | cc:TODO |
-| 3.3 | **Bridge `/v1/stt` ルート + STT proxy**。受信音声（単発: WAV or PCM base64）→（PCM なら WAV 化）→ Mac B サイドカーへ proxy → `{transcript}` 返却。Bearer 認証・`AbortController` タイムアウト・処理後バッファ即削除。`config.ts` に `STT_BASE_URL`/`STT_TIMEOUT_MS` 追加。Hermes は無改変の既存 `/v1/ask` を client が続けて呼ぶ [tdd:required] | `bun test` グリーン（inject: 認証401・タイムアウト504系・proxy mock で transcript 返却・処理後バッファ削除）、`biome check` 0、`bun run build` 成功 | 3.1, 3.2 | cc:TODO |
-| 3.4 | **g2hermes 音声入力 UI**（even-toolkit `GlassBridgeSource`）。idle メニューに「🎤 音声で質問」追加 → 録音開始（"Listening…"）→ 終了ジェスチャで `audioControl(false)` → PCM 結合 → `/v1/stt` POST → 「聞き取り: <transcript>」表示 → 既存 `askBridge`(/v1/ask) で回答ページ。`AbortController` タイムアウト。プレビュー/シミュレーターは getUserMedia フォールバック or スキップ [tdd:skip:integration-simulator] | `bun run build` 成功・`biome check` 0。シミュレーターで状態遷移（idle→listening→transcribing→answer）動作（実音声は 3.5） | 3.0, 3.3 | cc:TODO |
-| 3.5 | **実機 E2E + v0.2.0 パッケージング**。実機 G2 で「音声で質問→Listening→聞き取り表示→Hermes 回答表示」を達成。実レイテンシ記録・秘密境界（音声/STT が Mac B ローカル完結・外部送信ゼロ）確認・`evenhub pack` で `g2hermes-v0.2.0.ehpk` 生成 [tdd:skip:integration-e2e] | 実機で音声→回答が表示、実レイテンシを検証メモに記録、`.ehpk`(v0.2.0) 生成。実機最終確認はユーザー実施 | 3.4 | cc:TODO |
+| 3.0 | 実機マイク到達性スパイク。捨て（or 正式版）`app.json` に `g2-microphone` を足し、最小キャプチャ + console ログをサイドロード。**シミュレーター不可（Mac マイク代替で `g2-microphone` 権限フローを検証できない）＝実機のみ**。先に配布経路（sideload / Hub In-Development）を決める。実機操作はユーザー [tdd:skip:throwaway-spike] | 実機で `audioControl(true)` が `true` を返し、`audioEvent.audioPcm`（非空 Uint8Array）が console に届くことをユーザーが確認・記録。**シミュレーター green は不可**。権限が降りない/拒否なら `blocked` にし `phone-microphone` 等の代替を検討 | - | cc:完了（2026-06-09 実機確認OK・**gating PASS**: PR #27 で g2hermes に menu「🎤 マイク診断」+ probe（`src/even/mic-probe.ts`＝`audioControl(true)`→`onEvenHubEvent` で `audioPcm` を観測、SDK 直叩き隔離）を実装、`app.json` に `g2-microphone` 追加、**v0.1.1** に bump して `evenhub pack`→Hub In-Development で実機 G2 に載せユーザー確認。`audioControl` 起動OK・`PCM events`/`bytes` 増加。**GPS 型権限ブロックは不発＝マイクは動く**。**PCM 実形式確定**: `first: len=3200`B/イベント＝1600サンプル＝**100msチャンク**（約10ev/s）、先頭バイト `[4 251 255 6 9 254 255 2 0]`→**16kHz / mono / s16le**（`ffmpeg -f s16le -ar 16000 -ac 1` 可。仕様書の「40バイト/フレーム」は誤り）。3.1.1/3.3.1/3.3.2 の WAV 化はこの形式前提。probe の `probe` phase は暫定で 3.4.2 の録音状態機械で置換予定） |
 
-### 検証メモ（Phase 3・記入用）
+### Phase 3.1: STT サイドカー（Mac B・ローカル mlx-whisper）
 
-- [x] 実機マイク権限: `audioControl(true)` で `audioEvent.audioPcm` が届くか（3.0・GPS 前例との差を確認）→ **OK（2026-06-09・g2hermes v0.1.1 実機）。起動OK・PCM events/bytes 増加。GPS 型権限ブロックは不発**
-- [x] PCM 実形式（2026-06-09・3.0 probe 実測でほぼ確定）: **`first: len=3200` バイト/イベント**、先頭バイト `[4 251 255 6 9 254 255 2 0]`。
-  - **= 16kHz / 16bit signed little-endian（s16le）**。バイトを s16le ペアで読むと −1276/+1791/−503/+767 と 0 中心に小さく±に振れる静音波形。上位バイトが 0x00〜0x06（正小）か 0xFB〜0xFF（負小）に集中＝s16le の決定的サイン。
-  - 3200B = 1600 サンプル = **100ms チャンク**（約10イベント/秒）。channel は mono が整合（最終確認は 3.1 の WAV 再生）。
-  - → 仕様書 §9.1 の `ffmpeg -f s16le -ar 16000 -ac 1` がそのまま使える。§19 の「40バイト/フレーム」は誤り。
-- [ ] warm mlx-whisper の実レイテンシ（15秒音声・3.2）
-- [ ] 実機 E2E レイテンシ（音声→回答・3.5）
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.1.0 | Python サイドカー tooling baseline。配置 `servers/g2-hermes-stt`（Mac B では `~/ai/.venv` 3.12 で実行）。ruff + pytest 設定 [tdd:skip:setup] | `ruff check` 0、`pytest -q` が exit 0（collect 0 回避のため最小 smoke 1件を置く） | - | cc:TODO |
+| 3.1.1 | サイドカー実装: mlx-whisper（`whisper-large-v3-mlx`）warm 常駐、`POST /transcribe`（WAV bytes・**メモリ Buffer 直渡しでディスク回避を優先**）→`{text,ms}`、`GET /health`（loaded 真偽）、**127.0.0.1 のみ bind**、日本語 + 幻覚リピート除去。**Mac B の `~/ai/transcribe.py` 実在を確認し当該ロジック流用、無ければ language=ja + 幻覚除去を新規実装**。同時リクエストは直列化 or 503 [tdd:required] | pytest で既知 WAV フィクスチャ→text に期待語が**含まれる**（実推論は非決定的なため緩い assert）。`/health` loaded=true。`lsof -nP -iTCP:8643 -sTCP:LISTEN` が `127.0.0.1:8643` のみ（`*`/`0.0.0.0` でない）。**large-v3 常駐 RSS を実測し Mac B RAM で Hermes 同居・スワップ無し**。`float32ToWav` 出力 WAV を読める（不可なら soundfile/ffmpeg 経由）。空/極短/無音で幻覚テキストを返さない（or 呼び出し側で弾く前提を明記） | 3.0, 3.1.0 | cc:TODO |
+| 3.1.2 | launchd plist `com.frogman.g2hermes-stt`（RunAtLoad/KeepAlive/ThrottleInterval）+ repo 配置（memory `feedback-keep-deploy-artifacts-in-repo`） [tdd:skip:deploy-config] | launchctl 常駐、`kill -9`→自動復帰し /health loaded=true まで戻る（再ロード秒数を記録）、`launchctl kickstart -k` 後 /health 200。plist を repo に残す。**Tailscale IP から 8643 へ接続不可**を確認（loopback 実証） | 3.1.1 | cc:TODO |
+
+### Phase 3.2: Bridge ルート（既存サーバーに追加）
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.2.1 | `POST /v1/transcribe`: **`addContentTypeParser('audio/wav', { parseAs: 'buffer' })` で raw Buffer 受信**（`parseAs:'buffer'` 未指定だと文字列化され WAV が壊れる）、Bearer、size 上限→413、`AbortController`→504、**サイドカー不達→502**、OPTIONS 認証スキップ。サイドカーへ転送。一時データはメモリ優先（ディスクなら 0600+finally 削除）。ルート骨格+inject は 3.1.1 を待たず着手可、実サイドカー curl だけ 3.1.1 依存 [tdd:required]（fetchImpl でサイドカーをモック） | inject テストで 401（無トークン）/ 200+`{text}` / **415 でない（audio/wav parser 登録済）** / OPTIONS 204+CORS（audio/wav preflight 通過）/ 413（size超）/ 502（不達）/ 504（timeout）。biome 0、build 成功 | -（骨格+injectは独立。実サイドカー curl のみ 3.1.1） | cc:TODO |
+| 3.2.2 | `GET /health` 拡張: STT 到達性 `stt` フィールド追加 [tdd:required] | fetchImpl モックで stt 200→reachable / ECONNREFUSED→unreachable に切り替わる inject テスト。biome 0 | 3.2.1 | cc:TODO |
+
+### Phase 3.3: クライアント音声キャプチャ（even-toolkit 流用）
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.3.1 | even-toolkit/stt の export 実体確認（`GlassBridgeSource` / `createAudioBuffer` / `float32ToWav` の正確な名・signature）。`bun install` 済みで `even-toolkit/stt` が解決することを確認。無ければ自前 WAV エンコーダ（44byte header + Int16）方針を確定 [tdd:skip:investigation] | 正確な export 名・引数を設計ノート（spec §9-1）に記録。解決不能なら自前エンコーダ方針を記録 | - | cc:TODO |
+| 3.3.2 | 音声キャプチャ + WAV化 + POST: `bridgeClient` に `transcribe()` 追加、`AbortController`、最大30s タイマー、停止/終了/`beforeunload` で `source.stop()`（`audioControl(false)`）。空/極短録音はクライアント閾値で弾き recording へ戻す [tdd:required] | PCM→WAV ユニット（無音/最大長/通常）green、空/極短を弾く判定のユニット green、biome 0、build 成功 | 3.2.1, 3.3.1 | cc:TODO |
+
+### Phase 3.4: 状態機械 + 権限
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.4.1 | `app.json` に `g2-microphone` 権限追加（`desc` は審査向け文言＝spec §4.6）。network whitelist は不変 [tdd:skip:config] | `app.json` に `g2-microphone` と desc 文言が実在、evenhub-cli で valid、network whitelist 不変 | - | cc:完了（PR #27 で `g2-microphone`+desc 追加済み・network whitelist 不変・`evenhub pack` valid。3.0 実機検証もこの権限で通過） |
+| 3.4.2 | 状態機械拡張 `idle→recording→transcribing→review→thinking→answer` + `screen.ts` action（録音開始/停止/送信/録り直し）、idle にプリセット併存、error 表示。**recording 中 background→foreground で `audioControl` が閉じ/復帰**（`everything-evenhub:background-state`）。recording 表示は静的 or 更新 ≤1s で BLE 過負荷回避 [tdd:required]（reducer ユニット。シミュレーター部分は integration） | 状態遷移 reducer ユニット green。シミュレーターで状態遷移とモック PCM の配線確認（実音声は 3.5.1）。background→foreground でマイクが閉じ/復帰する確認。biome 0、build 成功 | 3.3.2, 3.4.1 | cc:TODO |
+
+### Phase 3.5: E2E + パッケージング
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 3.5.1 | 実機 E2E（録音→ローカル文字起こし→確認→Hermes 回答）。レイテンシ P50/P95 実測、実機 `audioPcm` 到達、マイク許可フロー確定、秘密境界確認、`.ehpk` 生成。whitelist は Tailscale IP full origin（placeholder commit→pack 前ローカル置換。**既存 `apps/g2hermes/app.json` の whitelist が placeholder 運用に沿っているか確認・是正も含む**） [tdd:skip:integration-e2e] | 実機で E2E 成功。P50/P95 記録し Bridge transcribe タイムアウト ≥ P95×2。**tcpdump/ログで音声が Tailscale 外に平文流出しない・`HERMES_API_KEY` が WebView bundle/通信に出ない**ことを各1回確認。`g2hermes.ehpk` 生成。実機最終確認はユーザー | 3.1.2, 3.2.2, 3.4.2 | cc:TODO |
+
+### Phase 3 スコープ外
+
+- リアルタイム途中字幕（streaming STT・WebSocket）／ TTS（§13 Phase 4）／ 常用化: Tunnel・HTTPS・JWT・rate limit（§13 Phase 5）／ 音声コマンド操作。
 
 ## 制約
 
@@ -135,8 +153,6 @@ Hermes Agent API Server（`hermes gateway`）
 - app.json の network whitelist は **CORS 回避ではない**。Bridge 側で CORS ヘッダ + OPTIONS 応答が別途必要。whitelist は **ポート込み full origin**・wildcard/bare hostname 不可。
 - 秘密情報: `HERMES_API_KEY` を WebView に出さない。Bridge Token と Hermes Key を分ける。`.env` は gitignore、`change-me-local-dev` を実値に置換。
 - コード作業前に `andrej-karpathy-skills:karpathy-guidelines` スキルを必ず invoke すること（hisho 計画と同規約）。
-- **実装プロセス（ユーザー指示 2026-06-08）**: 実装開始時はブランチを切る（main に直接コミットしない）。**PR を出す前に Codex Review（公式 `/codex:review` 正規ルート）を必ず通す**。
-- **Phase 3 の gating**: マイク権限（`g2-microphone` / `audioControl`）が実機で取れるかを 3.0 で最優先に確認する。GPS 権限が実機で取れなかった前例（memory `reference_hub_dev_mode`）があるため、3.0 が失敗したら Phase 3 を停止しユーザー判断へ上げる（パイプラインを先に作らない）。
 
 ### Notes
 
