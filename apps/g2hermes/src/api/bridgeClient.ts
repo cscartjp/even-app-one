@@ -2,8 +2,18 @@
 // 秘密境界（仕様書 §11）: ここで使う VITE_BRIDGE_TOKEN は WebView 用の弱いトークン。
 // Hermes の強いキー（HERMES_API_KEY）は Bridge 側に留まり WebView には出ない。
 
-const BRIDGE_BASE = import.meta.env.VITE_BRIDGE_BASE ?? 'http://127.0.0.1:8787'
-const BRIDGE_TOKEN = import.meta.env.VITE_BRIDGE_TOKEN ?? 'dev-token'
+// 設定は配布時に必ず注入する（vite が `.env` を読み込む）。未設定のまま
+// `127.0.0.1` 等へフォールバックすると、G2 WebView から見た `127.0.0.1` は
+// Mac ではなく端末自身を指すため Ask が常に失敗する。よって壊れた既定値は置かず、
+// 未設定は askBridge が明示エラーとして返す（黙って壊さない / 仕様書 §15.2）。
+const BRIDGE_BASE = import.meta.env.VITE_BRIDGE_BASE
+const BRIDGE_TOKEN = import.meta.env.VITE_BRIDGE_TOKEN
+
+if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
+  console.warn(
+    '[g2hermes] VITE_BRIDGE_BASE / VITE_BRIDGE_TOKEN が未設定です。apps/g2hermes/.env を確認してください（evenhub pack 前に必須）。',
+  )
+}
 
 /** クライアント側タイムアウト。Bridge 自身も Hermes へ別途タイムアウトを張る。 */
 const TIMEOUT_MS = 20_000
@@ -32,6 +42,9 @@ export async function askBridge(
   text: string,
   mode: 'short' | 'normal' = 'short',
 ): Promise<AskOutcome> {
+  if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
+    return { ok: false, error: 'Bridge 未設定（.env を確認）' }
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
   try {
