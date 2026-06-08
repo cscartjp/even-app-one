@@ -387,6 +387,13 @@ function buildHtml(json: string): string {
   // グルメ（近い順）: 左=店舗リスト / 右=選択店舗の詳細。選択移動で右ペインのみ更新。
   // 長い店名は左で省略し、右ペイン1行目に正式名称をフル表示（最大2行折返し）。
   const NAME_W = 18; // 左リストで店名に割ける表示幅（全角9文字相当）
+  // 実機 gourmet-nearby.ts の SPLIT_MAX_VISIBLE と一致させる（多件数ジャンルで
+  // 選択行を可視窓内に保つ）。slidingWindowStart も実機ロジックの移植
+  const SPLIT_MAX_VISIBLE = 7;
+  function slidingWindowStart(hi, total, maxVisible){
+    if(total <= maxVisible) return 0;
+    return Math.max(0, Math.min(hi - Math.floor(maxVisible / 2), total - maxVisible));
+  }
   function renderNearby(node, screen){
     screen.innerHTML = '';
     const root = document.createElement('div');
@@ -404,7 +411,9 @@ function buildHtml(json: string): string {
     body.className = 'nb-body';
     const list = document.createElement('div');
     list.className = 'nb-list';
-    node.list.forEach((s, i) => {
+    const start = slidingWindowStart(node.sel, node.list.length, SPLIT_MAX_VISIBLE);
+    node.list.slice(start, start + SPLIT_MAX_VISIBLE).forEach((s, j) => {
+      const i = start + j;
       const div = document.createElement('div');
       div.className = 'row' + (i === node.sel ? ' hot' : '');
       div.textContent = (i === node.sel ? '▶ ' : PREFIX) +
