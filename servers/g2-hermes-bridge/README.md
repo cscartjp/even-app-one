@@ -47,7 +47,9 @@ bun install           # 依存解決（リポジトリ root で実行）
 
 ## 常時自動起動（launchd・Mac B）
 
-構成 B-1（Bridge を Hermes と同一 Mac = Mac B に同居）での常時自動起動手順。Bridge は Hermes に依存するため、**Hermes gateway → Bridge の順**に登録する。どちらもユーザー LaunchAgent（`~/Library/LaunchAgents/`、sudo 不要）。
+構成 B-1（Bridge を Hermes と同一 Mac = Mac B に同居）での常時自動起動手順。どちらもユーザー LaunchAgent（`~/Library/LaunchAgents/`、sudo 不要）。
+
+> **起動順について**: launchd は独立した LaunchAgent 同士の**起動順を保証しない**。以下は「導入手順」として Hermes を先に install するだけで、ログイン時の起動順を強制するものではない。Bridge は Hermes 未起動でも**落ちない**（`/health` が `hermes:"unreachable"` を返すだけ）ので順序依存はない。Hermes が立ち上がれば次回以降の問い合わせから `reachable` になる。
 
 ```bash
 # 1. Hermes gateway を launchd サービス化（純正コマンド・冪等。--force で再インストール）

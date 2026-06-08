@@ -25,9 +25,13 @@
     <key>RunAtLoad</key>
     <true/>
 
-    <!-- クラッシュ時に自動復帰 -->
+    <!-- 常駐サーバーなので常に再起動（clean exit も異常とみなし復帰させる） -->
     <key>KeepAlive</key>
     <true/>
+
+    <!-- 起動失敗が続いた場合の再起動間引き（既定 10 秒より保守的に）。タイトな再起動ループ・ログ肥大を防ぐ -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
 
     <key>StandardOutPath</key>
     <string>/Users/yoshiura/g2bridge.log</string>
