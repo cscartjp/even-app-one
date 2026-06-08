@@ -85,7 +85,7 @@ Hermes Agent API Server（`hermes gateway`）
 
 ### 検証メモ（記入用）
 
-- [ ] 実機 WebView の `Origin` 実値: （1.5 で記録）
+- [ ] 実機 WebView の `Origin` 実値: （1.5 で記録）。**mixed content 注意**: Phase 1 は意図的に `http://` over Tailscale（HTTPS 化は仕様書 §13 Phase 2+ のスコープ）。1.5 で採取した Origin が `https://` 系だった場合、WebView は `http://` への `fetch` を mixed content でブロックし得る（`docs/guides/06-networking.md`）。その時は Tailscale Serve / `*.ts.net` で Bridge を HTTPS 提供し whitelist を `https://...` に寄せる方針へ切替（Phase 1 PoC の HTTP 前提が崩れる唯一の分岐点）。
 - [x] Mac B（Hermes 同居機）の Tailscale IP（whitelist 用）: 確定済み。**実値は公開 repo に書かずローカルにのみ保持**し、`app.json` は placeholder（`100.64.0.1`）を commit、`evenhub pack` 前にローカルで実 IP へ置換（B-1）
 - [ ] Hermes 応答の実レイテンシ（ツール実行時）: （1.1/1.5 で記録）
 
