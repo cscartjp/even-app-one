@@ -1,4 +1,13 @@
 // G2 Hermes Bridge Server — Phase 1 テキスト Bridge PoC のエントリポイント。
-// HTTP ルート（GET /health, POST /v1/ask）は Task 1.3、
-// ピュア関数（extractOutputText / paginateForG2）は Task 1.2 で実装する。
-export const VERSION = '0.1.0'
+// 設定を読み、サーバーを組み立てて listen する。ルート定義は server.ts。
+import { loadConfig } from './config'
+import { buildServer } from './server'
+
+const config = loadConfig()
+const app = buildServer({ config })
+
+// 0.0.0.0 で待ち受け、スマホから Tailscale IP 経由で到達可能にする。
+app.listen({ host: '0.0.0.0', port: config.port }).catch((err) => {
+  app.log.error(err)
+  process.exit(1)
+})
