@@ -194,6 +194,16 @@ export function AppGlasses({ state, dispatch, presets }: AppGlassesProps) {
     }
   }, [back, stopMic])
 
+  // 待ち時間スピナー（Phase 4）。thinking/transcribing の間だけ ~190ms 間隔で TICK を打ち、
+  // reducer の frame を進める。phase が変われば cleanup で clearInterval され、離脱先は
+  // thinking/transcribing でないため再設定されない（answer/review/error/BACK/unmount すべてで停止）。
+  // TICK は frame しか変えず、表示は updateHomeText→textContainerUpgrade に乗るためちらつかない。
+  useEffect(() => {
+    if (state.phase !== 'thinking' && state.phase !== 'transcribing') return
+    const id = setInterval(() => dispatch({ type: 'TICK' }), 190)
+    return () => clearInterval(id)
+  }, [state.phase, dispatch])
+
   const ctxRef = useRef<Ctx>({
     ask,
     startRecording: beginRecording,
