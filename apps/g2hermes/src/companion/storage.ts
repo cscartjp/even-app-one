@@ -55,6 +55,10 @@ export function createPresetStore(deps: PresetStoreDeps): PresetStore {
     deps.localStorage ?? globalThis.localStorage
   // 書き込み直列化キュー。連続編集で savePresets が並列に呼ばれても呼び出し順を保つ（hisho 踏襲）。
   let saveQueue: Promise<void> = Promise.resolve()
+  // bridge 未取得時に localStorage へ退避した最新値。bridge が遅れて利用可能になったら
+  // 次の保存でこれを先に bridge へ流し、起動直後（1500ms 待ち中）の編集が bridge に
+  // 同期されず再起動で消えるのを防ぐ（CodeRabbit 指摘）。bridge 取得後に保存が続く限り解消する。
+  let pendingBridgeSync: string | null = null
 
   return {
     async loadPresets(): Promise<Preset[]> {
@@ -76,10 +80,17 @@ export function createPresetStore(deps: PresetStoreDeps): PresetStore {
         try {
           const bridge = await deps.getBridge()
           if (bridge) {
+            // bridge 不在中に localStorage へ退避した分があれば先に同期してから今回値を書く。
+            if (pendingBridgeSync !== null) {
+              await bridge.setLocalStorage(PRESETS_KEY, pendingBridgeSync)
+              pendingBridgeSync = null
+            }
             await bridge.setLocalStorage(PRESETS_KEY, value)
             return
           }
           ls().setItem(PRESETS_KEY, value)
+          // bridge が後で利用可能になったときに flush する最新値として覚えておく。
+          pendingBridgeSync = value
         } catch {
           // 失敗は握り潰す（state がキャッシュを兼ね次回起動で再試行）。
           // チェーン内で吸収して後続キューを壊さない。

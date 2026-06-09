@@ -68,7 +68,7 @@ UI は hisho と同じ `even-toolkit/web`（v1.7.2・既存依存）で組む。
 
 **A 保存プリセット編集**
 
-```
+```text
 起動時: App で storage.loadPresets() → presets state（未設定/不正なら default seed）
 編集:  PresetEditor → setPresets(next) → storage.savePresets(next)（write-through・直列化）
 反映:  App が presets を AppGlasses に渡す → snapshot.presets → 100ms ポーリングで idle メニューへ
@@ -76,7 +76,7 @@ UI は hisho と同じ `even-toolkit/web`（v1.7.2・既存依存）で組む。
 
 **B その場送信**
 
-```
+```text
 AskBox 送信 → App の runAsk(label:'(カスタム)', text) を呼ぶ（= reducer に ASK dispatch）
   → state.phase='thinking' → askBridge() → 'answer'+pages / 'error'
   → AppGlasses snapshot ポーリングで グラスに Thinking→回答 を表示

@@ -134,6 +134,14 @@ describe('parse のフォールバック（黙って壊さない）', () => {
     expect(parse(bad)).toEqual(DEFAULT_PRESETS)
   })
 
+  test('重複 id を含む → default seed（key 衝突 / update・remove の多重適用を防ぐ）', () => {
+    const dup = JSON.stringify([
+      { id: 'same', label: 'A', text: 'aaa' },
+      { id: 'same', label: 'B', text: 'bbb' },
+    ])
+    expect(parse(dup)).toEqual(DEFAULT_PRESETS)
+  })
+
   test('フォールバックは DEFAULT_PRESETS の共有参照を返さない（誤変更防止）', () => {
     const got = parse('')
     expect(got).not.toBe(DEFAULT_PRESETS)

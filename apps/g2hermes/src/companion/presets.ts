@@ -62,9 +62,14 @@ function defaultSeed(): Preset[] {
   return DEFAULT_PRESETS.map((p) => ({ ...p }))
 }
 
+/** id が全件ユニークか（重複は React key 衝突・update/remove の多重適用を招く）。 */
+function hasUniqueIds(presets: Preset[]): boolean {
+  return new Set(presets.map((p) => p.id)).size === presets.length
+}
+
 /**
  * 保存 JSON 文字列を presets 配列に戻す。不正 JSON・配列でない・件数違反・
- * 検証落ち要素を含む場合はデフォルトシードへフォールバックする（黙って壊さない）。
+ * 検証落ち要素・id 重複を含む場合はデフォルトシードへフォールバックする（黙って壊さない）。
  */
 export function parse(raw: string): Preset[] {
   let data: unknown
@@ -76,5 +81,6 @@ export function parse(raw: string): Preset[] {
   if (!Array.isArray(data)) return defaultSeed()
   if (data.length < PRESET_MIN || data.length > PRESET_MAX) return defaultSeed()
   if (!data.every(validatePreset)) return defaultSeed()
+  if (!hasUniqueIds(data)) return defaultSeed()
   return data
 }
