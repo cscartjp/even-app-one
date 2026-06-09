@@ -24,6 +24,8 @@ export interface State {
   errorMsg: string | null
   /** recording 中のヒント（空/極短で弾いたときの「もう一度話してください」）。 */
   notice: string | null
+  /** 待ち時間スピナーのアニメ frame（thinking/transcribing で TICK 加算・入場で 0）。 */
+  frame: number
 }
 
 export type Event =
@@ -37,6 +39,7 @@ export type Event =
   | { type: 'PREV_PAGE' }
   | { type: 'FAIL'; error: string } // 任意 → error
   | { type: 'BACK' } // 任意 → idle へリセット
+  | { type: 'TICK' } // 待ち時間スピナーの frame を進める（thinking/transcribing 中のみ発火）
 
 export const initialState: State = {
   phase: 'idle',
@@ -46,6 +49,7 @@ export const initialState: State = {
   pageIndex: 0,
   errorMsg: null,
   notice: null,
+  frame: 0,
 }
 
 export function reduce(state: State, event: Event): State {
@@ -61,7 +65,7 @@ export function reduce(state: State, event: Event): State {
     case 'REC_TOO_SHORT':
       return { ...state, phase: 'recording', notice: 'もう一度話してください' }
     case 'STOP_RECORDING':
-      return { ...state, phase: 'transcribing', notice: null }
+      return { ...state, phase: 'transcribing', notice: null, frame: 0 }
     case 'TRANSCRIBED':
       return { ...state, phase: 'review', transcript: event.text }
     case 'ASK':
@@ -70,6 +74,7 @@ export function reduce(state: State, event: Event): State {
         phase: 'thinking',
         askingLabel: event.label,
         errorMsg: null,
+        frame: 0,
       }
     case 'ANSWERED':
       return { ...state, phase: 'answer', pages: event.pages, pageIndex: 0 }
@@ -87,5 +92,7 @@ export function reduce(state: State, event: Event): State {
       return { ...state, phase: 'error', errorMsg: event.error }
     case 'BACK':
       return { ...initialState }
+    case 'TICK':
+      return { ...state, frame: state.frame + 1 }
   }
 }

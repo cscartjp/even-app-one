@@ -109,6 +109,40 @@ describe('ページ送り（answer）', () => {
   })
 })
 
+describe('待ち時間スピナー frame（Phase 4）', () => {
+  test('initialState.frame は 0', () => {
+    expect(initialState.frame).toBe(0)
+  })
+
+  test('TICK で frame +1（phase/askingLabel 等は不変）', () => {
+    const s = reduce(
+      { ...initialState, phase: 'thinking', askingLabel: 'q', frame: 2 },
+      { type: 'TICK' },
+    )
+    expect(s.frame).toBe(3)
+    expect(s.phase).toBe('thinking')
+    expect(s.askingLabel).toBe('q')
+  })
+
+  test('STOP_RECORDING（transcribing 入場）で frame=0 リセット', () => {
+    const s = reduce(
+      { ...initialState, phase: 'recording', frame: 5 },
+      { type: 'STOP_RECORDING' },
+    )
+    expect(s.phase).toBe('transcribing')
+    expect(s.frame).toBe(0)
+  })
+
+  test('ASK（thinking 入場）で frame=0 リセット', () => {
+    const s = reduce(
+      { ...initialState, phase: 'review', transcript: 'q', frame: 7 },
+      { type: 'ASK', label: 'q' },
+    )
+    expect(s.phase).toBe('thinking')
+    expect(s.frame).toBe(0)
+  })
+})
+
 describe('エラーと戻る', () => {
   test('FAIL → error（errorMsg 設定）', () => {
     const s = reduce(
@@ -129,6 +163,7 @@ describe('エラーと戻る', () => {
         pageIndex: 1,
         errorMsg: 'e',
         notice: 'n',
+        frame: 9,
       },
       { type: 'BACK' },
     )

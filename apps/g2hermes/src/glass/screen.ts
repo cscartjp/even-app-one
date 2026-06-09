@@ -12,6 +12,24 @@ export interface PresetQuestion {
 /** idle メニュー先頭に置く音声入力エントリのラベル（Task 3.4.2）。 */
 export const VOICE_LABEL = '🎤 話す'
 
+/** thinking 中に行末で回す 8 方向矢印（45°刻み・Phase 4）。 */
+const THINKING_GLYPHS = ['▲', '◥', '▶', '◢', '▼', '◣', '◀', '◤'] as const
+/** transcribing 中に流す専用 1 行のドット幅。 */
+const FLOW_WIDTH = 5
+
+/** thinking の待ち時間スピナー（frame で 8 方向矢印を巡回）。純関数。 */
+export function thinkingSpinner(frame: number): string {
+  return THINKING_GLYPHS[frame % THINKING_GLYPHS.length]
+}
+
+/** transcribing の待ち時間スピナー（● が左→右へ流れてループ）。純関数。 */
+export function transcribingSpinner(frame: number): string {
+  const pos = frame % FLOW_WIDTH
+  return Array.from({ length: FLOW_WIDTH }, (_, i) =>
+    i === pos ? '●' : '─',
+  ).join('')
+}
+
 /** 画面のスナップショット = 状態機械の State + 静的なプリセット一覧。 */
 export type Snapshot = State & { presets: PresetQuestion[] }
 
@@ -60,7 +78,11 @@ export const hermesScreen: GlassScreen<Snapshot, Ctx> = {
 
     if (s.phase === 'transcribing') {
       return {
-        lines: [...header, line(''), line('  文字起こし中…')],
+        lines: [
+          ...header,
+          line('  文字起こし中…'),
+          line(`  ${transcribingSpinner(s.frame)}`),
+        ],
       }
     }
 
@@ -80,7 +102,7 @@ export const hermesScreen: GlassScreen<Snapshot, Ctx> = {
         lines: [
           ...header,
           line(''),
-          line('  Thinking…'),
+          line(`  Thinking… ${thinkingSpinner(s.frame)}`),
           line(
             s.askingLabel ? `  「${s.askingLabel}」を問い合わせ中` : '',
             'meta',
