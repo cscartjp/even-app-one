@@ -1,3 +1,4 @@
+import { ScreenHeader } from 'even-toolkit/web'
 import { useEffect, useReducer, useState } from 'react'
 import { DEFAULT_PRESETS, type Preset } from './companion/presets'
 import { loadPresets } from './companion/storage'
@@ -23,12 +24,14 @@ export function App() {
     }
   }, [])
 
+  // スタイル基盤（Task 2.1）の仮置き UI。toolkit web コンポーネント + Tailwind utilities が
+  // 効くことの確認用。Task 2.5 で <Companion/>（プリセット編集）に置き換える。
   return (
-    <main>
-      <h1>G2 Hermes Bridge</h1>
-      <p>
-        グラスを装着し、Ask で質問を選んでください（↕で選択・タップで送信）。
-      </p>
+    <main className="space-y-3 px-3 pt-4 pb-8">
+      <ScreenHeader
+        title="G2 Hermes Bridge"
+        subtitle="グラスを装着し、Ask で質問を選んでください（↕で選択・タップで送信）。"
+      />
       <AppGlasses state={state} dispatch={dispatch} presets={presets} />
     </main>
   )
