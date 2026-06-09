@@ -124,6 +124,29 @@ describe('待ち時間スピナー frame（Phase 4）', () => {
     expect(s.askingLabel).toBe('q')
   })
 
+  test('TICK は transcribing でも frame +1', () => {
+    const s = reduce(
+      { ...initialState, phase: 'transcribing', frame: 0 },
+      { type: 'TICK' },
+    )
+    expect(s.frame).toBe(1)
+  })
+
+  test('TICK は waiting phase 以外では frame を進めず同一参照を返す（再レンダー抑止）', () => {
+    for (const phase of [
+      'idle',
+      'recording',
+      'review',
+      'answer',
+      'error',
+    ] as const) {
+      const base = { ...initialState, phase, frame: 4 }
+      const s = reduce(base, { type: 'TICK' })
+      expect(s).toBe(base) // 参照不変 = useReducer が再レンダーを bail out
+      expect(s.frame).toBe(4)
+    }
+  })
+
   test('STOP_RECORDING（transcribing 入場）で frame=0 リセット', () => {
     const s = reduce(
       { ...initialState, phase: 'recording', frame: 5 },

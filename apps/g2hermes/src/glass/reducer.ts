@@ -93,6 +93,11 @@ export function reduce(state: State, event: Event): State {
     case 'BACK':
       return { ...initialState }
     case 'TICK':
-      return { ...state, frame: state.frame + 1 }
+      // 待ち時間 phase のときだけ frame を進める。それ以外は同一参照を返し、
+      // useReducer の再レンダー（→ BLE への余計な updateHomeText）を bail out させる
+      // （離脱直後の stray TICK を無コスト化・状態機械の不変条件）。
+      return state.phase === 'thinking' || state.phase === 'transcribing'
+        ? { ...state, frame: state.frame + 1 }
+        : state
   }
 }
