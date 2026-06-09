@@ -1,7 +1,19 @@
-import { ScreenHeader } from 'even-toolkit/web'
-import { useEffect, useReducer, useState } from 'react'
-import { DEFAULT_PRESETS, type Preset } from './companion/presets'
-import { loadPresets } from './companion/storage'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react'
+import { Companion } from './companion/Companion'
+import { canPersist } from './companion/editor'
+import {
+  DEFAULT_PRESETS,
+  type Preset,
+  validatePreset,
+} from './companion/presets'
+import { loadPresets, savePresets } from './companion/storage'
 import { AppGlasses } from './glass/AppGlasses'
 import { initialState, reduce } from './glass/reducer'
 
@@ -12,27 +24,40 @@ import { initialState, reduce } from './glass/reducer'
 export function App() {
   const [state, dispatch] = useReducer(reduce, initialState)
   const [presets, setPresets] = useState<Preset[]>(DEFAULT_PRESETS)
+  // ユーザーが編集を始めたか。起動時 loadPresets が遅れて解決した場合に編集を上書きしないためのフラグ。
+  const dirtyRef = useRef(false)
 
   // 起動時に保存済み presets を読み込む（未保存/不正は loadPresets が DEFAULT_PRESETS を返す）。
   useEffect(() => {
     let alive = true
     void loadPresets().then((p) => {
-      if (alive) setPresets(p)
+      // 先にユーザーが編集していたら（dirty）、起動ロード結果で編集中 state を潰さない
+      // （bridge 待ち 1500ms / 実機初期化が遅い環境での編集ロストを防ぐ）。
+      if (alive && !dirtyRef.current) setPresets(p)
     })
     return () => {
       alive = false
     }
   }, [])
 
-  // スタイル基盤（Task 2.1）の仮置き UI。toolkit web コンポーネント + Tailwind utilities が
-  // 効くことの確認用。Task 2.5 で <Companion/>（プリセット編集）に置き換える。
+  // 編集結果を state に反映し、保存可能（全件検証通過・件数範囲内）なら storage へ write-through。
+  // 不正リスト（編集途中の空欄など）は保存せず state のキャッシュに留め、次回起動の default 落ちを防ぐ。
+  const handlePresetsChange = useCallback((next: Preset[]) => {
+    dirtyRef.current = true
+    setPresets(next)
+    if (canPersist(next)) void savePresets(next)
+  }, [])
+
+  // グラス（idle メニュー / askBridge）へは検証通過のプリセットだけ渡す。編集中の draft
+  // （空ラベル / 空プロンプト等の不正要素）はスマホ editor にのみ見せ、idle 空行や空送信を防ぐ。
+  const glassPresets = useMemo(() => presets.filter(validatePreset), [presets])
+
+  // スマホ WebView は Companion（編集 draft 全件）を描画。グラス表示は AppGlasses（DOM 非描画）が
+  // valid な部分集合を購読する（編集が idle メニューへ即反映、ただし未完成項目は出さない）。
   return (
-    <main className="space-y-3 px-3 pt-4 pb-8">
-      <ScreenHeader
-        title="G2 Hermes Bridge"
-        subtitle="グラスを装着し、Ask で質問を選んでください（↕で選択・タップで送信）。"
-      />
-      <AppGlasses state={state} dispatch={dispatch} presets={presets} />
-    </main>
+    <>
+      <Companion presets={presets} onPresetsChange={handlePresetsChange} />
+      <AppGlasses state={state} dispatch={dispatch} presets={glassPresets} />
+    </>
   )
 }
