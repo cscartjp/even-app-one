@@ -5,7 +5,7 @@ describe('loadConfig', () => {
   test('未設定は既定値', () => {
     const c = loadConfig({})
     expect(c.port).toBe(8787)
-    expect(c.hermesTimeoutMs).toBe(30000)
+    expect(c.hermesTimeoutMs).toBe(180000)
     expect(c.bridgeToken).toBe('dev-token')
     expect(c.sttBaseUrl).toBe('http://127.0.0.1:8643')
     expect(c.sttTimeoutMs).toBe(60000)
@@ -31,8 +31,8 @@ describe('loadConfig', () => {
     expect(loadConfig({ PORT: '' }).port).toBe(8787)
     expect(loadConfig({ PORT: '0' }).port).toBe(8787)
     expect(loadConfig({ PORT: '-1' }).port).toBe(8787)
-    expect(loadConfig({ HERMES_TIMEOUT_MS: 'x' }).hermesTimeoutMs).toBe(30000)
-    expect(loadConfig({ HERMES_TIMEOUT_MS: '' }).hermesTimeoutMs).toBe(30000)
+    expect(loadConfig({ HERMES_TIMEOUT_MS: 'x' }).hermesTimeoutMs).toBe(180000)
+    expect(loadConfig({ HERMES_TIMEOUT_MS: '' }).hermesTimeoutMs).toBe(180000)
   })
 
   test('有効値は採用', () => {
