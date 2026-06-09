@@ -100,18 +100,19 @@ let bridgePromise: Promise<Awaited<
  * タイムアウトしても bridgePromise は保持し、遅れて resolve した場合に以降の呼び出しで使えるようにする。
  */
 async function tryGetBridge(): Promise<PresetBridge | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
   try {
     if (!bridgePromise) bridgePromise = waitForEvenAppBridge()
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
     const timeoutPromise = new Promise<null>((resolve) => {
       timeoutId = setTimeout(() => resolve(null), BRIDGE_WAIT_MS)
     })
-    const result = await Promise.race([bridgePromise, timeoutPromise])
-    if (timeoutId !== null) clearTimeout(timeoutId)
-    return result
+    // race が reject しても finally でタイマーを必ず解除する（reject 経路の timer leak 防止・Copilot 指摘）。
+    return await Promise.race([bridgePromise, timeoutPromise])
   } catch {
     bridgePromise = null
     return null
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId)
   }
 }
 
