@@ -15,6 +15,7 @@ import {
 } from './companion/presets'
 import { loadPresets, savePresets } from './companion/storage'
 import { AppGlasses } from './glass/AppGlasses'
+import { CUSTOM_ASK_LABEL, runAsk } from './glass/ask'
 import { initialState, reduce } from './glass/reducer'
 
 // G2 Hermes — スマホ WebView クライアント。
@@ -52,11 +53,22 @@ export function App() {
   // （空ラベル / 空プロンプト等の不正要素）はスマホ editor にのみ見せ、idle 空行や空送信を防ぐ。
   const glassPresets = useMemo(() => presets.filter(validatePreset), [presets])
 
-  // スマホ WebView は Companion（編集 draft 全件）を描画。グラス表示は AppGlasses（DOM 非描画）が
-  // valid な部分集合を購読する（編集が idle メニューへ即反映、ただし未完成項目は出さない）。
+  // スマホ AskBox からのその場送信。共有 runAsk でグラスの ask と同一経路（Phase 1 askBridge）を流す。
+  // 同じ reducer state を AskBox とグラスの両方が購読し、送信中/回答/エラーがミラー表示される。
+  const handleAsk = useCallback((text: string) => {
+    void runAsk(dispatch, CUSTOM_ASK_LABEL, text)
+  }, [])
+
+  // スマホ WebView は Companion（その場送信 + 編集 draft 全件）を描画。グラス表示は
+  // AppGlasses（DOM 非描画）が valid な部分集合を購読する（編集が idle メニューへ即反映）。
   return (
     <>
-      <Companion presets={presets} onPresetsChange={handlePresetsChange} />
+      <Companion
+        presets={presets}
+        onPresetsChange={handlePresetsChange}
+        state={state}
+        onAsk={handleAsk}
+      />
       <AppGlasses state={state} dispatch={dispatch} presets={glassPresets} />
     </>
   )
