@@ -29,7 +29,7 @@ bun install           # 依存解決（リポジトリ root で実行）
 
 | route | 認証 | 内容 |
 |-------|------|------|
-| `GET /health` | 不要 | `{ ok, version, hermes }`。`hermes` は到達性（reachable/unreachable/timeout/error:NNN） |
+| `GET /health` | 不要 | `{ ok, version, hermes, stt }`。`hermes`/`stt` は各到達性（reachable/unreachable/timeout/error:NNN）。両者は並行確認で独立 |
 | `POST /v1/ask` | Bearer 必須 | `{ sessionId, text, mode? }` を Hermes へ中継し `{ ok, sessionId, responseId, text, pages, audioUrl }` を返す |
 | `OPTIONS *` | 不要 | CORS preflight（@fastify/cors が応答。認証はスキップ） |
 
@@ -65,7 +65,7 @@ launchctl load -w ~/Library/LaunchAgents/com.frogman.g2hermes-bridge.plist
 
 # 3. 確認
 launchctl list | rg 'frogman|ai.hermes.gateway'
-curl -s http://127.0.0.1:8787/health     # {"ok":true,...,"hermes":"reachable"}
+curl -s http://127.0.0.1:8787/health     # {"ok":true,...,"hermes":"reachable","stt":"reachable"}
 ```
 
 [`deploy/com.frogman.g2hermes-bridge.plist`](deploy/com.frogman.g2hermes-bridge.plist) は `RunAtLoad`（ログイン時起動）+ `KeepAlive`（クラッシュ時自動復帰）。`WorkingDirectory` を Bridge ディレクトリに設定しているため Bun が `.env` を自動読込する。ログは `~/g2bridge.log` / `~/g2bridge.err`。

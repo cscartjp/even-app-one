@@ -8,7 +8,7 @@ import {
   HermesTimeoutError,
   type SessionStore,
 } from './hermes-client'
-import { SttTimeoutError, transcribeAudio } from './stt-client'
+import { checkStt, SttTimeoutError, transcribeAudio } from './stt-client'
 
 /** buildServer の依存。`fetchImpl` を差し替えると Hermes をモックできる。 */
 export interface BuildServerDeps {
@@ -75,8 +75,12 @@ export function buildServer(deps: BuildServerDeps) {
   })
 
   app.get('/health', async () => {
-    const hermes = await checkHermes({ config, fetchImpl })
-    return { ok: true, version: VERSION, hermes }
+    // hermes と stt の到達性は独立。直列だと遅延が加算されるため並行で確認する。
+    const [hermes, stt] = await Promise.all([
+      checkHermes({ config, fetchImpl }),
+      checkStt({ config, fetchImpl }),
+    ])
+    return { ok: true, version: VERSION, hermes, stt }
   })
 
   app.post('/v1/ask', async (req, reply) => {
