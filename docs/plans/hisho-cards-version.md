@@ -24,7 +24,7 @@
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 1.1 | **使われている vite config を特定**（`.js`/`.ts` 重複の実体確認）し、その config で **`app.json` の `version`（=0.1.7）を読み**、`define` に `__APP_VERSION__` として注入（`package.json` ではない）。`tsc -b` を通すため global 宣言（`vite-env.d.ts` 等に `declare const __APP_VERSION__: string`）を追加。`[tdd:skip:build-config]` | `__APP_VERSION__` が `app.json` の version で build に注入され `tsc -b` がエラー 0 | - | cc:TODO |
+| 1.1 | **使われている vite config を特定**（`.js`/`.ts` 重複の実体確認）し、その config で **`app.json` の `version`（=0.1.7）を読み**、`define` に `__APP_VERSION__` として注入（`package.json` ではない）。`tsc -b` を通すため global 宣言（`vite-env.d.ts` 等に `declare const __APP_VERSION__: string`）を追加。`[tdd:skip:build-config]` | `__APP_VERSION__` が `app.json` の version で build に注入され `tsc -b` がエラー 0 | - | cc:完了 [7b2876f] |
 | 1.2 | `statusBarLines()` のヘッダを `HISHO v${__APP_VERSION__}` に変更（案A）。`justifyToBarWidth` で 540px に収まり時計が押し出されないことを確認。収まらなければ案B（meta/ヒント行に控えめ併記）にフォールバック。`[tdd:required]` | `statusBarLines` の出力に version 文字列が含まれるテストが green。実幅（getTextWidth）で時計が欠けない | 1.1 | cc:TODO |
 | 1.3 | 検証 + プレビュー。`bun test` green / `bun run check` 0 / `bun run build` 成功。`bun run preview:screens` 出力（`index.html`）or シミュレーターで version 表示をスクショ確認。`[tdd:skip:verify]` | 3 コマンド green + version が見えるスクショ | 1.2 | cc:TODO |
 
