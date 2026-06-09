@@ -31,6 +31,14 @@ const SHORT_INSTRUCTIONS =
   'G2スマートグラスに表示するため、80字以内を基本に短く日本語で答えて。必要なら箇条書き最大3つ。'
 
 /**
+ * /health の Hermes 到達性プローブのタイムアウト上限（ms）。
+ * ask 用の hermesTimeoutMs（長め）とは分離し、`min(hermesTimeoutMs, この値)` で打ち切る。
+ * 長い ask timeout に引きずられて Hermes 停止時に /health がハングするのを防ぐ。
+ * hermesTimeoutMs がこれより短い設定（テスト等）はその短い値を尊重する。
+ */
+const HEALTH_PROBE_TIMEOUT_MS = 5_000
+
+/**
  * Hermes `/v1/responses` にテキストを送り、本文抽出 + G2 用ページ分割した結果を返す。
  * `previous_response_id` で会話を継続し、`AbortController` でタイムアウトする。
  */
@@ -111,7 +119,13 @@ export async function checkHermes(
   const { config } = deps
   const fetchImpl = deps.fetchImpl ?? fetch
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), config.hermesTimeoutMs)
+  // 到達性プローブは ask 用 hermesTimeoutMs（長め）と分離し、min(hermesTimeoutMs, 上限) で
+  // 短く打ち切る（長くすると Hermes 停止時に /health 自体が長時間ハングするため）。
+  const probeTimeoutMs = Math.min(
+    config.hermesTimeoutMs,
+    HEALTH_PROBE_TIMEOUT_MS,
+  )
+  const timer = setTimeout(() => controller.abort(), probeTimeoutMs)
   try {
     const res = await fetchImpl(`${config.hermesBaseUrl}/models`, {
       headers: { Authorization: `Bearer ${config.hermesApiKey}` },

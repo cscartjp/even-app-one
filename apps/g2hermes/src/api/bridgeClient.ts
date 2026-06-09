@@ -15,8 +15,12 @@ if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
   )
 }
 
-/** クライアント側タイムアウト。Bridge 自身も Hermes へ別途タイムアウトを張る。 */
-const TIMEOUT_MS = 20_000
+/**
+ * ask のクライアント側タイムアウト。Bridge→Hermes（既定 180s）より長くし、Hermes が
+ * 遅い（住所/評価などの lookup で生成が伸びる・実測 ~115s 例あり）ときに client が先に abort して
+ * 「タイムアウト」を出すのを防ぐ。client が長いと Bridge の 504/エラーを受け取れる。グラスは待てる前提。
+ */
+const TIMEOUT_MS = 190_000
 
 /**
  * 文字起こしのクライアント側タイムアウト。Bridge→STT は既定 60s なので、

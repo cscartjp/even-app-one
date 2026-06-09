@@ -11,7 +11,12 @@ export interface BridgeConfig {
   hermesBaseUrl: string
   /** Hermes の API キー。WebView には渡さない。 */
   hermesApiKey: string
-  /** Bridge→Hermes fetch のタイムアウト（ms）。超過で 504 を返す。 */
+  /**
+   * Bridge→Hermes ask fetch のタイムアウト（ms）。超過で 504。
+   * Hermes エージェントは住所/評価などの lookup で生成が伸びるため長め（既定 180s。
+   * 実測で住所＋評価つきの質問が ~115s かかった例があり、余裕を持たせている）。
+   * グラス表示なので待てる前提。/health の到達性プローブには使わない（checkHermes は別の短い値）。
+   */
   hermesTimeoutMs: number
   /**
    * CORS で許可する Origin。`true` は全 origin 反映（Phase 1 既定）。
@@ -33,7 +38,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
     bridgeToken: env.BRIDGE_TOKEN ?? 'dev-token',
     hermesBaseUrl: env.HERMES_BASE_URL ?? 'http://127.0.0.1:8642/v1',
     hermesApiKey: env.HERMES_API_KEY ?? 'change-me-local-dev',
-    hermesTimeoutMs: toPositiveInt(env.HERMES_TIMEOUT_MS, 30000),
+    hermesTimeoutMs: toPositiveInt(env.HERMES_TIMEOUT_MS, 180000),
     corsAllowedOrigins: parseOrigins(env.CORS_ALLOWED_ORIGINS),
     sttBaseUrl: env.STT_BASE_URL ?? 'http://127.0.0.1:8643',
     sttTimeoutMs: toPositiveInt(env.STT_TIMEOUT_MS, 60000),

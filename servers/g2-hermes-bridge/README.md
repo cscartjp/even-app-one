@@ -43,7 +43,7 @@ bun install           # 依存解決（リポジトリ root で実行）
 | `BRIDGE_TOKEN` | WebView → Bridge の Bearer 認証トークン |
 | `HERMES_BASE_URL` | Hermes API Server のベース URL（`/v1` まで）。別 Mac の Hermes には SSH トンネルで 127.0.0.1 維持 or Tailscale IP 指定 |
 | `HERMES_API_KEY` | Hermes の API キー。WebView には渡さない |
-| `HERMES_TIMEOUT_MS` | Bridge→Hermes タイムアウト（ms・任意、既定 30000） |
+| `HERMES_TIMEOUT_MS` | Bridge→Hermes ask タイムアウト（ms・任意、既定 180000。住所/評価 lookup 等で生成が伸びるため長め。/health プローブには非適用） |
 
 ## 常時自動起動（launchd・Mac B）
 
