@@ -65,7 +65,7 @@ launchctl load -w ~/Library/LaunchAgents/com.frogman.g2hermes-bridge.plist
 
 # 3. 確認
 launchctl list | rg 'frogman|ai.hermes.gateway'
-curl -s http://127.0.0.1:8787/health     # {"ok":true,...,"hermes":"reachable"}
+curl -s http://127.0.0.1:8787/health     # {"ok":true,...,"hermes":"reachable","stt":"reachable"}
 ```
 
 [`deploy/com.frogman.g2hermes-bridge.plist`](deploy/com.frogman.g2hermes-bridge.plist) は `RunAtLoad`（ログイン時起動）+ `KeepAlive`（クラッシュ時自動復帰）。`WorkingDirectory` を Bridge ディレクトリに設定しているため Bun が `.env` を自動読込する。ログは `~/g2bridge.log` / `~/g2bridge.err`。

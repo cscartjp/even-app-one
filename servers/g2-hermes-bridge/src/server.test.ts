@@ -10,6 +10,7 @@ function makeApp(fetchImpl?: typeof fetch) {
     HERMES_BASE_URL: 'http://hermes.test/v1',
     HERMES_API_KEY: 'k',
     HERMES_TIMEOUT_MS: '50',
+    STT_TIMEOUT_MS: '50',
   })
   return buildServer({ config, fetchImpl, logger: false })
 }
@@ -287,6 +288,35 @@ describe('GET /health', () => {
     const body = res.json() as { hermes: string; stt: string }
     expect(body.hermes).toBe('reachable')
     expect(body.stt).toBe('unreachable')
+    await app.close()
+  })
+
+  test('STT タイムアウト時は stt=timeout（STT_TIMEOUT_MS=50 で abort）', async () => {
+    // abort されるまで解決しない fetch。checkStt の timeout 分岐を固定する。
+    const fetchImpl = ((_url: string | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('aborted', 'AbortError')),
+        )
+      })) as unknown as typeof fetch
+    const app = makeApp(fetchImpl)
+    const res = await app.inject({ method: 'GET', url: '/health' })
+    expect(res.statusCode).toBe(200)
+    expect((res.json() as { stt: string }).stt).toBe('timeout')
+    await app.close()
+  })
+
+  test('STT 非2xx時は stt=error:NNN', async () => {
+    // STT(/health) は 503、Hermes(/models) は 200。checkStt の error:status 分岐を固定する。
+    const fetchImpl = (async (url: string | URL) => {
+      if (String(url).endsWith('/health'))
+        return new Response('x', { status: 503 })
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const app = makeApp(fetchImpl)
+    const res = await app.inject({ method: 'GET', url: '/health' })
+    expect(res.statusCode).toBe(200)
+    expect((res.json() as { stt: string }).stt).toBe('error:503')
     await app.close()
   })
 })
