@@ -1,6 +1,6 @@
 # G2 Hermes Bridge Plans.md
 
-作成日: 2026-06-08 / 最終更新: 2026-06-09
+作成日: 2026-06-08 / 最終更新: 2026-06-10
 
 Even G2 から Mac 上の Hermes Agent へ問い合わせるブリッジ。テキスト PoC（Phase 1）→ コンパニオン カスタム質問（Phase 2）→ 音声入力（Phase 3）→ 待ち時間 UX（Phase 4）と段階的に拡張中。
 
@@ -122,9 +122,40 @@ Hermes Agent API Server（`hermes gateway`）
 
 ブランチを切る → PR 前に Codex Review（`/codex:review` 正規ルート）→ PR → bot レビューループ（CodeRabbit / Copilot / CI green）→ squash merge。
 
+---
+
+## Phase 5: Hisho バージョン表示（issue #44）
+
+> **Hisho ワークストリーム**（`apps/hisho`・G2 Hermes とは別アプリ）。詳細計画・公式スキル根拠 = `docs/plans/hisho-cards-version.md`。
+> **version 源 = `apps/hisho/app.json` の `version`（=0.1.7）**（`package.json` の 1.0.0 はアプリ版ではない）。⚠️ `apps/hisho` に `vite.config.ts` と `vite.config.js` が両在＝Vite は `.js` 優先なので define は実体側に入れる。
+> team_validation_mode: `manual-pass`（`everything-evenhub:sdk-reference` / `glasses-ui` で裏付け）。Spec skip reason: UI 局所変更・Hisho UI 正本は `design-mock.html`。
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 5.1 | 使われている vite config を特定（`.ts`/`.js` 両在・Vite は `.js` 優先）、その config で `app.json` の `version`（=0.1.7）を読み `define` に `__APP_VERSION__` 注入 + `tsc -b` 用 global 宣言（`vite-env.d.ts` 等に `declare const __APP_VERSION__: string`） [tdd:skip:build-config] | `__APP_VERSION__` が `app.json` の version で注入され `tsc -b` エラー 0 | - | cc:TODO |
+| 5.2 | `apps/hisho/src/glass/shared.ts` の `statusBarLines()` を `HISHO v${__APP_VERSION__}` に（案A）。`justifyToBarWidth` で 540px に収まり時計が押し出されない確認、収まらねば案B（meta 行に控えめ併記）にフォールバック [tdd:required] | `statusBarLines` 出力に version を含むテスト green・`getTextWidth` 実幅で時計が欠けない | 5.1 | cc:TODO |
+| 5.3 | 検証 + プレビュー。`bun test` green / `bun run check` 0 / `bun run build` 成功。`bun run preview:screens`（`index.html`）or シミュレーターで version 表示をスクショ確認 [tdd:skip:verify] | 3 コマンド green + version が見えるスクショ | 5.2 | cc:TODO |
+
+**Phase 5 プロセス**: ブランチ `feat/hisho-version-display` → Codex Review → PR → bot レビューループ → squash merge。
+
+## Phase 6: Hisho ホームのカード化（issue #37・Stage A=Go 済み）
+
+> **Hisho ワークストリーム**。Stage A（モック見た目ゲート）は Go 済み（`apps/hisho/preview/design-mock-card-spike.html`・issue #37 コメント）。詳細計画 = `docs/plans/hisho-cards-version.md`。
+> **【公式仕様で確定】ネイティブ枠は SDK 標準**（`everything-evenhub:sdk-reference`）: `TextContainerProperty`/`ListContainerProperty` が `borderWidth`(0–5)/`borderColor`(0–15)/`borderRadius`(0–10・角丸)/`paddingLength`(0–32) を持つ。**枠の変更は `rebuildPageContainer`＝ちらつき**（`textContainerUpgrade` はコンテンツのみ無ちらつき）→ 無ちらつき選択は list の `isItemSelectBorderEn` か content カーソル。統合は raw SDK 直叩き（推奨）か even-toolkit `setBorder()`（高レベル `line()` は `borderWidth:0` ハードコードで不可）。
+> team_validation_mode: `manual-pass`（公式スキル sdk-reference / glasses-ui / design-guidelines で裏付け）。
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 6.1 | **Stage B（見え方確認＋統合経路の確定）**: raw SDK 直叩き（推奨）か even-toolkit `setBorder()` で border 付きコンテナを最小構成、シミュレーターでスクショ（`everything-evenhub:test-with-simulator` / `simulator-automation`） [tdd:skip:spike-integration] | 角丸枠の見え方をスクショ確認 + 採用経路（raw SDK / sdk-wrapper）を記録。割に合わなければ wiki「線と枠の描画」に記録して #37 クローズ | - | cc:TODO |
+| 6.2 | 採用経路で **Hisho ホームをカード化**（「電車情報」「グルメ情報」を `borderWidth>0`/`borderRadius`/`paddingLength` 付き text コンテナに）。box-drawing（`train.ts`/`shared.ts`）無改変。**選択表現は (a) list コンテナ化して `isItemSelectBorderEn`（無ちらつき）か (b) 静的枠＋content カーソル/反転**（border トグルの毎回 rebuild は避ける） [tdd:required] | ホームがカード描画・選択ロジックのテスト green | 6.1 | cc:TODO |
+| 6.3 | 検証: 10 行・幅に収まる / box-drawing と共存 / 選択移動で不要な全画面ちらつき無し をシミュレータースクショ（`test-with-simulator`）。`bun test` green / `bun run check` 0 / `bun run build` 成功 [tdd:skip:verify] | 3 条件のスクショ + 3 コマンド green | 6.2 | cc:TODO |
+| 6.4 | 結論を wiki concept「線と枠の描画」に反映。採用なら正本モック `design-mock.html` への反映は**別途ユーザー承認後**（保護ファイル） [tdd:skip:docs] | wiki 更新 + #37 最終結論コメント | 6.3 | cc:TODO |
+
+**Phase 6 プロセス**: ブランチ `feat/hisho-home-cards` → Codex Review → PR → bot レビューループ → squash merge。
+
 ## 制約
 
-- **`apps/hisho/` は一切改変しない**（読み取り・参照のみ）。`apps/hisho/preview/design-mock.html` は保護ファイル。
+- **Phase 2–4（G2 Hermes 作業）では `apps/hisho/` を改変しない**（読み取り・参照のみ）。**Phase 5–6 は Hisho ワークストリーム＝`apps/hisho/` が対象**。どの Phase でも `apps/hisho/preview/design-mock.html`（UI デザイン正本）は保護ファイルで無改変（spike はコピー `design-mock-card-spike.html` を使用・正本反映は別途承認）。
 - G2 表示は実機 line height 27px・**最大10行**・576×288px・4bit 緑階調。回答は短文化（instructions + `paginateForG2`）。
 - **ネットワークは Tailscale 限定**。whitelist は Mac の Tailscale IP（`http://100.x.x.x:PORT`）の full origin のみ。LAN IP は実機で固まるため使わない。
 - app.json の network whitelist は CORS 回避ではない。Bridge 側で CORS ヘッダ + OPTIONS 応答が別途必要。whitelist は ポート込み full origin・wildcard/bare hostname 不可。
@@ -142,6 +173,7 @@ Hermes Agent API Server（`hermes gateway`）
 
 ### Notes
 
-- Created via: harness-plan create（サブエージェント検証付き・Phase 0/1/3 = 2026-06-08、Phase 2 = 2026-06-09、Phase 4 = 2026-06-09）
+- Created via: harness-plan create（サブエージェント検証付き・Phase 0/1/3 = 2026-06-08、Phase 2 = 2026-06-09、Phase 4 = 2026-06-09、**Phase 5/6（Hisho・issue #44/#37）= 2026-06-10・everything-evenhub 公式スキル sdk-reference/glasses-ui/design-guidelines で裏付け**）
 - 二正本: product contract = `docs/spec/g2-hermes-bridge.md`（+ サブ spec 3 本）、task ledger = 本 `Plans.md`
+- **Hisho ワークストリーム（Phase 5/6）の詳細計画・公式スキル根拠 = `docs/plans/hisho-cards-version.md`**
 - アーカイブ: `docs/plans/g2-hermes-bridge-phase0-1.md`（Phase 0/1）/ `docs/plans/g2-hermes-phase2-3.md`（Phase 2/3 完了タスク詳細）
