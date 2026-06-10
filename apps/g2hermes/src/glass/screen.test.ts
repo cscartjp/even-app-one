@@ -65,8 +65,20 @@ describe('バージョン表示（app.json version の build 時注入）', () =
     expect(appVersion()).toBe('0.0.0-dev')
   })
 
-  test('header 先頭行に「G2 Hermes v<version>」を表示', () => {
-    const { lines } = hermesScreen.display(snap({ phase: 'idle' }), nav)
-    expect(lines[0]?.text).toBe(`G2 Hermes v${appVersion()}`)
+  test('__APP_VERSION__ 注入時はヘッダー先頭行に実バージョンを表示', () => {
+    // __APP_VERSION__ は Vite define（build 時）でのみ注入される。bun test は
+    // Vite を介さないため build と同じ経路（globalThis）で供給し、注入時の表示配線
+    // （appVersion() → ヘッダー）を検証する。他テストへ漏らさないよう finally で必ず復元。
+    const versionGlobal = globalThis as { __APP_VERSION__?: string }
+    const saved = versionGlobal.__APP_VERSION__
+    versionGlobal.__APP_VERSION__ = '9.9.9'
+    try {
+      expect(appVersion()).toBe('9.9.9')
+      const { lines } = hermesScreen.display(snap({ phase: 'idle' }), nav)
+      expect(lines[0]?.text).toBe('G2 Hermes v9.9.9')
+    } finally {
+      if (saved === undefined) delete versionGlobal.__APP_VERSION__
+      else versionGlobal.__APP_VERSION__ = saved
+    }
   })
 })
