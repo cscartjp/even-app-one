@@ -2,6 +2,7 @@ import { useGlasses } from 'even-toolkit/useGlasses'
 import { type Dispatch, useCallback, useEffect, useMemo, useRef } from 'react'
 import { transcribe } from '../api/bridgeClient'
 import { encodeWav, isTooShort } from '../audio/capture'
+import { isProbeEnabled, runGestureProbe } from '../audio/ttsProbe'
 import { requestExit } from '../even/bridge'
 import { type LifecycleHandle, watchLifecycle } from '../even/lifecycle'
 import { type MicSession, startMicCapture } from '../even/mic-source'
@@ -155,7 +156,12 @@ export function AppGlasses({ state, dispatch, presets }: AppGlassesProps) {
   }, [handleStop])
   const send = useCallback(() => {
     const t = stateRef.current.transcript ?? ''
-    if (t.trim()) void runAskGlass(t, t)
+    if (t.trim()) {
+      // Phase 7 プローブ: 送信タップ（グラス CLICK）の呼び出しスタック内で発話を試し、
+      // user activation 起点の鳴動を自動発話と弁別する。OFF（既定）なら no-op。
+      if (isProbeEnabled(import.meta.env.VITE_TTS_PROBE)) runGestureProbe(t)
+      void runAskGlass(t, t)
+    }
   }, [runAskGlass])
   const nextPage = useCallback(
     () => dispatch({ type: 'NEXT_PAGE' }),

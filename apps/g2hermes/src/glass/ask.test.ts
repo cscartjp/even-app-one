@@ -103,4 +103,31 @@ describe('runAsk（ask 配線：Phase 1 askBridge 経由）', () => {
     })
     expect(calls).toEqual([[ASK_SESSION_ID, 'テキスト', 'short']])
   })
+
+  // Phase 7 プローブの差し込み。probe を注入して env/window 非依存にする。
+  test('プローブ OFF（probe→null）: dispatch 列・pages が現行と等価', async () => {
+    const store = makeStore()
+    await runAsk(store.dispatch, 'q', 'q', {
+      ask: async () => okOutcome(['回答1', '回答2']),
+      probe: () => null,
+    })
+    expect(store.events.map((e) => e.type)).toEqual(['ASK', 'ANSWERED'])
+    expect(store.state.pages).toEqual(['回答1', '回答2'])
+  })
+
+  test('プローブ ON: pages 末尾に verdict 行が付く（回答テキストを受け取る）', async () => {
+    const store = makeStore()
+    const seen: string[] = []
+    await runAsk(store.dispatch, 'q', 'q', {
+      ask: async () => okOutcome(['回答1', '回答2']),
+      probe: (answer) => {
+        seen.push(answer)
+        return '🔊spk=Y aud=N v=3'
+      },
+    })
+    expect(store.events.map((e) => e.type)).toEqual(['ASK', 'ANSWERED'])
+    expect(store.state.pages).toEqual(['回答1', '回答2', '🔊spk=Y aud=N v=3'])
+    // 発話対象として回答テキストが渡る（pages を畳んだもの）。
+    expect(seen).toEqual(['回答1 回答2'])
+  })
 })
