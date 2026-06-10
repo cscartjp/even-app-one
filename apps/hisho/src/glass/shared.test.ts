@@ -1,12 +1,20 @@
-import { beforeAll, describe, expect, test } from 'bun:test'
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { getTextWidth } from '@evenrealities/pretext'
 import { statusBarLines } from './shared'
 
 // __APP_VERSION__ は Vite define（build 時）でのみ注入される。
 // bun test は Vite を介さないため、build と同じ経路（globalThis）で供給して
 // statusBarLines のバージョン表示配線を検証する。
+// 他テストへ漏らさないよう元の値を退避し、afterAll で必ず復元する。
+const versionGlobal = globalThis as { __APP_VERSION__?: string }
+let savedAppVersion: string | undefined
 beforeAll(() => {
-  ;(globalThis as { __APP_VERSION__?: string }).__APP_VERSION__ = '9.9.9'
+  savedAppVersion = versionGlobal.__APP_VERSION__
+  versionGlobal.__APP_VERSION__ = '9.9.9'
+})
+afterAll(() => {
+  if (savedAppVersion === undefined) delete versionGlobal.__APP_VERSION__
+  else versionGlobal.__APP_VERSION__ = savedAppVersion
 })
 
 // separator（'─'×27）と同じ右端。ステータスバーはこの幅に収める。
