@@ -55,11 +55,12 @@ export function formatVerdictLine(verdict: Verdict): string {
 }
 
 /**
- * gate 判定の純関数。`VITE_TTS_PROBE` が falsy（未設定 = 既定 OFF）なら false。
+ * gate 判定の純関数。`VITE_TTS_PROBE === '1'` のときだけ ON。未設定・`'0'`・`'false'`
+ * など「ON のつもりでない値」はすべて OFF（spec の `=1` 起動と厳密一致）。
  * env 値を引数で受け、`import.meta.env` への依存を呼び出し側に寄せる。
  */
 export function isProbeEnabled(flag: string | undefined): boolean {
-  return Boolean(flag)
+  return flag === '1'
 }
 
 // ---- 副作用ランナー（7.3・device-io / OFF 時は呼ばれない） ----------------

@@ -55,13 +55,21 @@ describe('formatVerdictLine（verdict→グラス1行）', () => {
   })
 })
 
-describe('isProbeEnabled（gate・falsy で OFF）', () => {
+describe("isProbeEnabled（gate・'1' のみ ON）", () => {
   test('未設定（undefined）は false', () => {
     expect(isProbeEnabled(undefined)).toBe(false)
   })
 
   test('空文字は false', () => {
     expect(isProbeEnabled('')).toBe(false)
+  })
+
+  test("'0' は false（OFF のつもりの値を ON にしない）", () => {
+    expect(isProbeEnabled('0')).toBe(false)
+  })
+
+  test("'false' は false", () => {
+    expect(isProbeEnabled('false')).toBe(false)
   })
 
   test("'1' は true", () => {
