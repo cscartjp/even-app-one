@@ -30,7 +30,9 @@ const previewAppVersion = JSON.parse(
 ).version
 // vite.config と同じ「非空文字列必須」契約を踏襲（不正なら HISHO vundefined を出さず throw）
 if (typeof previewAppVersion !== 'string' || previewAppVersion.length === 0) {
-  throw new Error('apps/hisho/app.json の version が不正です（非空の文字列が必要）')
+  throw new Error(
+    'apps/hisho/app.json の version が不正です（非空の文字列が必要）',
+  )
 }
 previewGlobal.__APP_VERSION__ = previewAppVersion
 
