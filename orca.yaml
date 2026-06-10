@@ -1,0 +1,13 @@
+# Orca worktree hooks (https://www.onorca.dev)
+# Shared, version-controlled replacement for the per-machine "local setup script".
+# Runs after a new worktree is created.
+scripts:
+  setup: |
+    bun install
+    # copy gitignored apps/*/.env* into the new worktree
+    cd "$ORCA_ROOT_PATH" || exit 0
+    for f in $(git ls-files -oi --exclude-standard -- 'apps/*/.env*'); do
+      dst="$ORCA_WORKTREE_PATH/$(dirname "$f")"
+      mkdir -p "$dst"
+      cp "$f" "$dst/"
+    done
