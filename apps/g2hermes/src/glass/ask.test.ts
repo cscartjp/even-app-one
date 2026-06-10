@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { AskOutcome } from '../api/bridgeClient'
-import { ASK_SESSION_ID, CUSTOM_ASK_LABEL, runAsk } from './ask'
+import { ASK_SESSION_ID, runAsk } from './ask'
 import { type Event, initialState, reduce, type State } from './reducer'
 
 // 実 reducer を通して event を畳み、idle→thinking→answer/error の遷移を観測する小さなストア。
@@ -37,7 +37,7 @@ const failOutcome = (error: string): AskOutcome => ({ ok: false, error })
 describe('runAsk（ask 配線：Phase 1 askBridge 経由）', () => {
   test('送信成功: idle→thinking→answer（pages を反映）', async () => {
     const store = makeStore()
-    await runAsk(store.dispatch, CUSTOM_ASK_LABEL, 'こんにちは', {
+    await runAsk(store.dispatch, 'こんにちは', 'こんにちは', {
       ask: async () => okOutcome(['回答1', '回答2']),
     })
     expect(store.events.map((e) => e.type)).toEqual(['ASK', 'ANSWERED'])
@@ -45,14 +45,16 @@ describe('runAsk（ask 配線：Phase 1 askBridge 経由）', () => {
     expect(store.state.pages).toEqual(['回答1', '回答2'])
   })
 
-  test('ASK で thinking に入り askingLabel が付く（中間遷移）', async () => {
+  test('ASK で thinking に入り、渡したラベルがそのまま askingLabel になる（中間遷移）', async () => {
     const store = makeStore()
-    await runAsk(store.dispatch, CUSTOM_ASK_LABEL, 'q', {
+    // スマホ自由入力は送信テキスト自身をラベルに渡す（App.tsx）。グラスは
+    // 「『テスト』を問い合わせ中」と表示する想定で、固定の (カスタム) には潰れない。
+    await runAsk(store.dispatch, 'テスト', 'テスト', {
       ask: async () => okOutcome(['a']),
     })
     const afterAsk = reduce(initialState, store.events[0])
     expect(afterAsk.phase).toBe('thinking')
-    expect(afterAsk.askingLabel).toBe(CUSTOM_ASK_LABEL)
+    expect(afterAsk.askingLabel).toBe('テスト')
   })
 
   test('pages 空でも text があれば 1 ページに畳む', async () => {
@@ -100,9 +102,5 @@ describe('runAsk（ask 配線：Phase 1 askBridge 経由）', () => {
       },
     })
     expect(calls).toEqual([[ASK_SESSION_ID, 'テキスト', 'short']])
-  })
-
-  test('カスタム送信ラベルは (カスタム)', () => {
-    expect(CUSTOM_ASK_LABEL).toBe('(カスタム)')
   })
 })
