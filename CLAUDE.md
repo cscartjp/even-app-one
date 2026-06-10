@@ -40,6 +40,19 @@ grep is not installed on this machine and commands will fail.
 
 仕組み（共通）: `app.json` の `version` を `vite.config.ts` の `define` で `__APP_VERSION__` として build 時にリテラル注入し、画面コードが `appVersion()` 経由で表示する。Vite を介さない実行（`bun test`）は `'0.0.0-dev'` にフォールバックする。
 
+## 配布ビルド・パッケージング規約（.ehpk / 絶対厳守）
+
+`.ehpk` 配布パッケージを作るときは、以下を**毎回**守る。過去に worktree でビルドして ENV 欠落の壊れた .ehpk を配布した事故あり（2026-06-10）。
+
+1. **`.env` のある場所でビルドする。** `apps/<app>/.env`（例 g2hermes の `VITE_BRIDGE_BASE` / `VITE_BRIDGE_TOKEN`）は **gitignore 済み**。git worktree には追跡ファイルしか入らないため `.env` が存在せず、Vite が `import.meta.env.VITE_*` を **undefined のまま焼き込み、実機で接続エラーになる**。
+   - worktree でビルドするなら build 前に必ず `cp <main checkout>/apps/<app>/.env apps/<app>/.env`（gitignore 済みでコミットされない）。または **main チェックアウト側でビルドする**。
+2. **手順は build → pack の順。** `bun run build`（= `tsc -b && vite build`、ここで ENV と `__APP_VERSION__` を注入）→ `evenhub pack app.json dist -o <name>.ehpk`。`dist/` を作らず pack するのは禁止。
+3. **CLI は `evenhub`（グローバル `~/.bun/bin/evenhub`）を直接呼ぶ。`npx evenhub` は禁止**（npm の別パッケージ `evenhub` を 404 で引く）。
+4. **pack 前後に bundle 検証を必ず行う（grep で判定）。**
+   - ENV: `rg -o "<実 BASE 値, 例 100.64.0.1:8787>" dist/assets/*.js` がヒットすること。**警告文字列 `VITE_BRIDGE_BASE / VITE_BRIDGE_TOKEN が未設定です` は常に bundle に含まれる**ので、これの有無で判定してはいけない。実値で見る。
+   - version: `rg -o "<x.y.z>" dist/assets/*.js` がヒットすること（app.json 由来なので ENV と無関係に通る → 「version が入っているから OK」と誤判定しない）。
+   - build ログに `VITE_BRIDGE_BASE / VITE_BRIDGE_TOKEN が未設定です` の警告が出ていないこと。
+
 ## リポジトリの目的
 
 Even Realities のスマートグラス **Even G2** 向けアプリ（Even Hub プラグイン）を開発する個人の趣味プロジェクト。Even Realities 社とは無関係（非公式）。

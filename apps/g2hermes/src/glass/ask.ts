@@ -5,9 +5,6 @@ import type { Event } from './reducer'
 /** 会話セッション。固定 ID にすると Bridge 側で会話が継続する（previous_response_id）。 */
 export const ASK_SESSION_ID = 'g2-main'
 
-/** スマホからのその場送信に付けるラベル（プリセット名でない自由入力）。 */
-export const CUSTOM_ASK_LABEL = '(カスタム)'
-
 type AskFn = (
   sessionId: string,
   text: string,
