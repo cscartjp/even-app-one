@@ -8,10 +8,7 @@ import {
   SectionHeader,
 } from 'even-toolkit/web'
 import { Route, Routes } from 'react-router'
-// 🧪 SPIKE (issue #37 Phase 6.1): カード化ホームの見た目を実機確認するため、本番
-// AppGlasses の代わりに AppGlassesCardSpike を一時マウントしている。Go なら本実装で
-// AppGlasses に統合し、この差し替えと spike ファイルを破棄する。
-import { AppGlassesCardSpike } from './glass/AppGlassesCardSpike'
+import { AppGlasses } from './glass/AppGlasses'
 
 function Home() {
   return (
@@ -59,7 +56,7 @@ function Home() {
           </Button>
         </div>
       </div>
-      <AppGlassesCardSpike />
+      <AppGlasses />
     </AppShell>
   )
 }

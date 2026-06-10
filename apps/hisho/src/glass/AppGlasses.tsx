@@ -1,18 +1,13 @@
 import { createScreenMapper } from 'even-toolkit/glass-router'
 import { useFlashPhase } from 'even-toolkit/useFlashPhase'
-import { useGlasses } from 'even-toolkit/useGlasses'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { defaultOrigin, defaultOriginLabel, type GeoPoint } from '../data/shops'
 import { stations } from '../data/stations'
-import {
-  type AppSnapshot,
-  onGlassAction,
-  toDisplayData,
-  toSplit,
-} from './selectors'
+import { type AppSnapshot, onGlassAction } from './selectors'
 import type { AppActions } from './shared'
 import { loadStationName, saveStationName } from './storage'
+import { useHishoGlasses } from './useHishoGlasses'
 
 const GLASS_ROUTES = {
   home: '/',
@@ -198,27 +193,12 @@ export function AppGlasses() {
     [],
   )
 
-  useGlasses({
+  // ホーム描画は useHishoGlasses が raw SDK で角丸枠カード化する（issue #37）。
+  // 画面判定（home / gourmetNearby=split / その他=text）はドライバ内部で行う。
+  useHishoGlasses({
     getSnapshot,
-    toDisplayData,
-    // 注意: getPageMode に 'split' を追加しても toSplit 未指定だと
-    // text モードに静かにフォールバックする（useGlasses 仕様）。必ずセットで渡す
-    toSplit,
     onGlassAction: handleGlassAction,
     deriveScreen,
-    appName: 'HISHO',
-    // 画像スプラッシュは使わない（テキスト「HISHO」描画のみで実質同等）。
-    // splash があると splash が作った「ロゴ下端からのテキスト領域」レイアウトが
-    // コールド起動の初回描画まで残り、ホームが上半分空白のまま切れる
-    // （needsRebuild が false になり updateHomeText しか走らないため）。
-    // ホームは常駐ロゴ画像なしの全面テキスト（ロゴタイルがあるとテキスト領域が
-    // タイル下端からになり、グルメ情報以降が 288px に収まらない）
-    getPageMode: (screen) =>
-      screen === 'home'
-        ? 'home'
-        : screen === 'gourmetNearby'
-          ? 'split'
-          : 'text',
   })
 
   return null
