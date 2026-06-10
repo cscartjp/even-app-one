@@ -7,7 +7,7 @@
     },
     "apps/g2hermes": {
       "name": "g2hermes",
-      "version": "0.2.0",
+      "version": "0.2.3",
       "dependencies": {
         "@evenrealities/even_hub_sdk": "^0.0.10",
         "class-variance-authority": "^0.7.1",
@@ -54,6 +54,7 @@
         "@evenrealities/evenhub-cli": "^0.1.13",
         "@evenrealities/evenhub-simulator": "^0.7.3",
         "@tailwindcss/vite": "^4.0.0",
+        "@types/bun": "^1.3.14",
         "@types/node": "^22.0.0",
         "@types/react": "^19.0.0",
         "@types/react-dom": "^19.0.0",
