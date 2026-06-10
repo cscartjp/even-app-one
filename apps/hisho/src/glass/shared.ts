@@ -25,6 +25,16 @@ function formatClock(now: Date): string {
   return `${y}年${m}月${d}日（${w}） ${hh}:${mm}`
 }
 
+/**
+ * アプリ版を返す。正本は app.json の version。
+ * build は Vite define が `__APP_VERSION__` をリテラル置換する。
+ * Vite を介さない実行（bun test / preview ツール）は globalThis 経由で供給され、
+ * 未供給時は '0.0.0-dev' にフォールバックする（未定義参照でクラッシュさせない）。
+ */
+function appVersion(): string {
+  return typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0-dev'
+}
+
 // separator（'─'×27）と同じ右端 540px を基準に空白数を事前計算する
 // getTextWidth は LVGL レンダリングと一致するピクセル値（@evenrealities/pretext）
 const SPACE_PX = getTextWidth(' ')
@@ -49,11 +59,11 @@ export function justifyToBarWidth(left: string, right: string): string {
 /**
  * ステータスバー共通実装。全画面の出力先頭 2 行（バー＋罫線）に挿入する。
  * 罫線が 1 行消費するため、各画面は実機の 10 行制約に収まるよう空行を調整する。
- * 内容: 「HISHO」＋右寄せ「YYYY年M月D日（曜） HH:MM」（separator 右端に揃える）
+ * 内容: 「HISHO v<version>」＋右寄せ「YYYY年M月D日（曜） HH:MM」（separator 右端に揃える）
  */
 export function statusBarLines(now: Date = new Date()): DisplayLine[] {
   return [
-    line(justifyToBarWidth('HISHO', formatClock(now))),
+    line(justifyToBarWidth(`HISHO v${appVersion()}`, formatClock(now))),
     line('', 'separator'),
   ]
 }

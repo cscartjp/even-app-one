@@ -9,6 +9,7 @@
  *
  * ※ ロジックを複製しないので、アプリを直せばプレビューも追従する（再生成するだけ）。
  */
+import { readFileSync } from 'node:fs'
 import { createScreenMapper } from 'even-toolkit/glass-router'
 import type { DisplayLine, GlassAction } from 'even-toolkit/types'
 import { defaultOrigin, defaultOriginLabel } from '../src/data/shops'
@@ -19,6 +20,21 @@ import {
 } from '../src/glass/screens/gourmet-nearby'
 import { onGlassAction, toDisplayData } from '../src/glass/selectors'
 import type { AppSnapshot } from '../src/glass/shared'
+
+// __APP_VERSION__ は Vite define（build）でのみ注入される。
+// このプレビューは Vite を介さず bun で実行するため、build と同じく app.json の
+// version を globalThis に供給し、statusBarLines が実バージョンを描画できるようにする。
+const previewGlobal = globalThis as { __APP_VERSION__?: string }
+const previewAppVersion = JSON.parse(
+  readFileSync(`${import.meta.dir}/../app.json`, 'utf-8'),
+).version
+// vite.config と同じ「非空文字列必須」契約を踏襲（不正なら HISHO vundefined を出さず throw）
+if (typeof previewAppVersion !== 'string' || previewAppVersion.length === 0) {
+  throw new Error(
+    'apps/hisho/app.json の version が不正です（非空の文字列が必要）',
+  )
+}
+previewGlobal.__APP_VERSION__ = previewAppVersion
 
 // AppGlasses.tsx と同じルート定義・画面マッピング
 const GLASS_ROUTES = {
@@ -196,6 +212,7 @@ nodes.set(splashId, {
 const data = {
   startId: splashId,
   generatedAt: new Date().toISOString(),
+  version: previewGlobal.__APP_VERSION__,
   nodes: Object.fromEntries(nodes),
 }
 
@@ -303,7 +320,7 @@ function buildHtml(json: string): string {
   <div class="scale"><div class="scaler">
     <div class="glass">
       <div class="statusbar">
-        <span class="app">HISHO</span>
+        <span class="app" id="appLabel">HISHO</span>
         <span class="clock" id="clock"></span>
       </div>
       <div id="screen"></div>
@@ -464,6 +481,8 @@ function buildHtml(json: string): string {
     else if(e.key==='Backspace'){ go('back'); e.preventDefault(); }
   });
   document.getElementById('genAt').textContent = new Date(DATA.generatedAt).toLocaleString('ja-JP');
+  // ステータスバーのアプリ名にバージョンを併記（アプリの statusBarLines と表記を一致させる）
+  document.getElementById('appLabel').textContent = 'HISHO v' + DATA.version;
 
   // 常時表示バーの時計（macOS メニューバー風: 2026年6月7日（日） 16:03）
   function updateClock(){

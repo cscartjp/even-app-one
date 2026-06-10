@@ -35,6 +35,7 @@
     "@evenrealities/evenhub-cli": "^0.1.13",
     "@evenrealities/evenhub-simulator": "^0.7.3",
     "@tailwindcss/vite": "^4.0.0",
+    "@types/bun": "^1.3.14",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

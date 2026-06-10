@@ -133,8 +133,8 @@ Hermes Agent API Server（`hermes gateway`）
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
 | 5.1 | 使われている vite config を特定（`.ts`/`.js` 両在・Vite は `.js` 優先）、その config で `app.json` の `version`（=0.1.7）を読み `define` に `__APP_VERSION__` 注入 + `tsc -b` 用 global 宣言（`vite-env.d.ts` 等に `declare const __APP_VERSION__: string`） [tdd:skip:build-config] | `__APP_VERSION__` が `app.json` の version で注入され `tsc -b` エラー 0 | - | cc:完了 [7b2876f] |
-| 5.2 | `apps/hisho/src/glass/shared.ts` の `statusBarLines()` を `HISHO v${__APP_VERSION__}` に（案A）。`justifyToBarWidth` で 540px に収まり時計が押し出されない確認、収まらねば案B（meta 行に控えめ併記）にフォールバック [tdd:required] | `statusBarLines` 出力に version を含むテスト green・`getTextWidth` 実幅で時計が欠けない | 5.1 | cc:TODO |
-| 5.3 | 検証 + プレビュー。`bun test` green / `bun run check` 0 / `bun run build` 成功。`bun run preview:screens`（`index.html`）or シミュレーターで version 表示をスクショ確認 [tdd:skip:verify] | 3 コマンド green + version が見えるスクショ | 5.2 | cc:TODO |
+| 5.2 | `apps/hisho/src/glass/shared.ts` の `statusBarLines()` を `HISHO v${__APP_VERSION__}` に（案A）。`justifyToBarWidth` で 540px に収まり時計が押し出されない確認、収まらねば案B（meta 行に控えめ併記）にフォールバック [tdd:required] | `statusBarLines` 出力に version を含むテスト green・`getTextWidth` 実幅で時計が欠けない | 5.1 | cc:完了 [3114b63]（案A 採用・最大時計でも左に余裕／案B 不要） |
+| 5.3 | 検証 + プレビュー。`bun test` green / `bun run check` 0 / `bun run build` 成功。`bun run preview:screens`（`index.html`）or シミュレーターで version 表示をスクショ確認 [tdd:skip:verify] | 3 コマンド green + version が見えるスクショ | 5.2 | cc:完了 [508e289]（3 コマンド green・headless スクショで「HISHO v0.1.7」+ 時計併記確認） |
 
 **Phase 5 プロセス**: ブランチ `feat/hisho-version-display` → Codex Review → PR → bot レビューループ → squash merge。
 
