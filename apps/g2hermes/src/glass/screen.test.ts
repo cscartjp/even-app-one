@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { initialState, type State } from './reducer'
-import { hermesScreen, thinkingSpinner, transcribingSpinner } from './screen'
+import {
+  appVersion,
+  hermesScreen,
+  thinkingSpinner,
+  transcribingSpinner,
+} from './screen'
 
 const nav = { highlightedIndex: 0, screen: 'home' }
 const snap = (over: Partial<State>) => ({
@@ -51,5 +56,29 @@ describe('display スピナー統合', () => {
     expect(a).toEqual(b)
     const joined = a.lines.map((l) => l.text).join('\n')
     expect(joined).toContain('REC ●')
+  })
+})
+
+describe('バージョン表示（app.json version の build 時注入）', () => {
+  test('appVersion は Vite 未注入時 0.0.0-dev にフォールバック', () => {
+    // bun test は __APP_VERSION__ を define しないので fallback を返す
+    expect(appVersion()).toBe('0.0.0-dev')
+  })
+
+  test('__APP_VERSION__ 注入時はヘッダー先頭行に実バージョンを表示', () => {
+    // __APP_VERSION__ は Vite define（build 時）でのみ注入される。bun test は
+    // Vite を介さないため build と同じ経路（globalThis）で供給し、注入時の表示配線
+    // （appVersion() → ヘッダー）を検証する。他テストへ漏らさないよう finally で必ず復元。
+    const versionGlobal = globalThis as { __APP_VERSION__?: string }
+    const saved = versionGlobal.__APP_VERSION__
+    versionGlobal.__APP_VERSION__ = '9.9.9'
+    try {
+      expect(appVersion()).toBe('9.9.9')
+      const { lines } = hermesScreen.display(snap({ phase: 'idle' }), nav)
+      expect(lines[0]?.text).toBe('G2 Hermes v9.9.9')
+    } finally {
+      if (saved === undefined) delete versionGlobal.__APP_VERSION__
+      else versionGlobal.__APP_VERSION__ = saved
+    }
   })
 })

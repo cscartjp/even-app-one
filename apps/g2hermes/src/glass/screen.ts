@@ -12,6 +12,16 @@ export interface PresetQuestion {
 /** idle メニュー先頭に置く音声入力エントリのラベル（Task 3.4.2）。 */
 export const VOICE_LABEL = '🎤 話す'
 
+/**
+ * アプリ版を返す。正本は app.json の version。
+ * build は Vite define が `__APP_VERSION__` をリテラル置換する。
+ * Vite を介さない実行（bun test）は未供給のため '0.0.0-dev' にフォールバックする
+ * （`typeof` は未宣言参照でも throw しないのでクラッシュしない）。
+ */
+export function appVersion(): string {
+  return typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0-dev'
+}
+
 /** thinking 中に行末で回す 8 方向矢印（45°刻み・Phase 4）。 */
 const THINKING_GLYPHS = ['▲', '◥', '▶', '◢', '▼', '◣', '◀', '◤'] as const
 /** transcribing 中に流す専用 1 行のドット幅。 */
@@ -63,7 +73,7 @@ const HINT_ANSWER = 'タップ:次  ↕:ページ  ダブルタップ:戻る'
  */
 export const hermesScreen: GlassScreen<Snapshot, Ctx> = {
   display(s, nav) {
-    const header = [line('G2 Hermes'), line('', 'separator')]
+    const header = [line(`G2 Hermes v${appVersion()}`), line('', 'separator')]
 
     if (s.phase === 'recording') {
       return {
