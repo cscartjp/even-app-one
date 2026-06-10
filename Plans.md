@@ -146,12 +146,14 @@ Hermes Agent API Server（`hermes gateway`）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 6.1 | **Stage B（見え方確認＋統合経路の確定）**: raw SDK 直叩き（推奨）か even-toolkit `setBorder()` で border 付きコンテナを最小構成、シミュレーターでスクショ（`everything-evenhub:test-with-simulator` / `simulator-automation`） [tdd:skip:spike-integration] | 角丸枠の見え方をスクショ確認 + 採用経路（raw SDK / sdk-wrapper）を記録。割に合わなければ wiki「線と枠の描画」に記録して #37 クローズ | - | cc:TODO |
+| 6.1 | **Stage B（見え方確認＋統合経路の確定）**: raw SDK 直叩き（推奨）か even-toolkit `setBorder()` で border 付きコンテナを最小構成、シミュレーターでスクショ（`everything-evenhub:test-with-simulator` / `simulator-automation`） [tdd:skip:spike-integration] | 角丸枠の見え方をスクショ確認 + 採用経路（raw SDK / sdk-wrapper）を記録。割に合わなければ wiki「線と枠の描画」に記録して #37 クローズ | - | cc:WIP（採用経路=raw SDK 直叩きで確定・spike 実装/push 済・実機 look-check 待ち） |
 | 6.2 | 採用経路で **Hisho ホームをカード化**（「電車情報」「グルメ情報」を `borderWidth>0`/`borderRadius`/`paddingLength` 付き text コンテナに）。box-drawing（`train.ts`/`shared.ts`）無改変。**選択表現は (a) list コンテナ化して `isItemSelectBorderEn`（無ちらつき）か (b) 静的枠＋content カーソル/反転**（border トグルの毎回 rebuild は避ける） [tdd:required] | ホームがカード描画・選択ロジックのテスト green | 6.1 | cc:TODO |
 | 6.3 | 検証: 10 行・幅に収まる / box-drawing と共存 / 選択移動で不要な全画面ちらつき無し をシミュレータースクショ（`test-with-simulator`）。`bun test` green / `bun run check` 0 / `bun run build` 成功 [tdd:skip:verify] | 3 条件のスクショ + 3 コマンド green | 6.2 | cc:TODO |
 | 6.4 | 結論を wiki concept「線と枠の描画」に反映。採用なら正本モック `design-mock.html` への反映は**別途ユーザー承認後**（保護ファイル） [tdd:skip:docs] | wiki 更新 + #37 最終結論コメント | 6.3 | cc:TODO |
 
 **Phase 6 プロセス**: ブランチ `feat/hisho-home-cards` → Codex Review → PR → bot レビューループ → squash merge。
+
+> **実装メモ（2026-06-10・6.1 spike）**: 採用経路 = **raw SDK 直叩き**で確定（even-toolkit 内部を一次照合: ① 高レベル `line()` は `bridge.ts` の全経路で `borderWidth:0` ハードコード ② `useGlasses` のホームは単一テキストコンテナ方式で border 付き複数コンテナを注入する hook 無し ③ `composer.ts`/SDK README で `TextContainerProperty` が `borderRadius`(0–10) を直接受けると確認 ④ 無ちらつき選択は list の `isItemSelectBorderEn` + `listEvent.currentSelectItemIndex`＝firmware ネイティブ）。→ カード化はホームを useGlasses から外し raw SDK で再描画する**侵襲的変更**で、コスメ改善のわりにコスト大とユーザーに提示し、**スパイク先行（実機 look-check）方針**を選択。spike は throwaway で実装: `apps/hisho/src/glass/homeCardSpike.ts`（border 付き text カード構成のピュア関数 + `createStartUpPageContainer` 描画）/ `homeCardSpike.test.ts`（5 pass）/ `AppGlassesCardSpike.tsx`（本番 AppGlasses を一時差し替え・静的 1 枚・電車カード=選択/明枠・グルメカード=非選択/暗枠）。`bun test` 8 pass・`biome check` 0・`bun run build` 成功。**実機 look-check の Go/No-Go 待ち** → Go なら 6.2 で AppGlasses に統合（選択は `isItemSelectBorderEn`/content カーソルで無ちらつき化）+ Codex Review → PR。No-Go なら wiki 記録して #37 クローズ。
 
 ## 制約
 
