@@ -122,6 +122,8 @@ export function useHishoGlasses(config: UseHishoGlassesConfig): void {
   // 描画の直列化（重ねがけ防止）。描画中の要求は pending にまとめて 1 回だけ追従する
   const busyRef = useRef(false)
   const pendingRef = useRef(false)
+  // 描画失敗のログは初回だけ出す（poll は 100ms 間隔のため spam を避ける）
+  const renderErrorLoggedRef = useRef(false)
 
   const render = useCallback(async () => {
     const hub = hubRef.current
@@ -179,8 +181,13 @@ export function useHishoGlasses(config: UseHishoGlassesConfig): void {
         notifyTextUpdate()
       }
       lastScreenRef.current = nav.screen
-    } catch {
-      // SDK 不在（Web プレビュー）— グラスは更新されないが Web は動作継続
+    } catch (err) {
+      // 冒頭で rawBridge を guard 済みなので、ここに来るのは SDK 不在ではなく
+      // 実描画の失敗（API 仕様変更/不正 payload 等）。初回だけログして追跡可能にする
+      if (!renderErrorLoggedRef.current) {
+        renderErrorLoggedRef.current = true
+        console.error('[useHishoGlasses] glass render failed', err)
+      }
     } finally {
       busyRef.current = false
       if (pendingRef.current) {
@@ -192,22 +199,28 @@ export function useHishoGlasses(config: UseHishoGlassesConfig): void {
 
   const handleAction = useCallback(
     (action: GlassAction) => {
+      // 非同期本体は try/catch で包む（未処理の promise rejection を防ぐ。
+      // 失敗しても握りつぶし、次の入力で回復できるようにする）
       void (async () => {
-        // ホームでのダブルタップ（GO_BACK）はネイティブ shutdown を開く
-        if (
-          action.type === 'GO_BACK' &&
-          renderKind(navRef.current.screen) === 'home'
-        ) {
-          await hubRef.current?.showShutdownContainer(1)
-          return
+        try {
+          // ホームでのダブルタップ（GO_BACK）はネイティブ shutdown を開く
+          if (
+            action.type === 'GO_BACK' &&
+            renderKind(navRef.current.screen) === 'home'
+          ) {
+            await hubRef.current?.showShutdownContainer(1)
+            return
+          }
+          const snapshot = configRef.current.getSnapshot()
+          navRef.current = configRef.current.onGlassAction(
+            action,
+            navRef.current,
+            snapshot,
+          )
+          void render()
+        } catch {
+          // 入力処理の失敗は無視（次の入力で回復する）
         }
-        const snapshot = configRef.current.getSnapshot()
-        navRef.current = configRef.current.onGlassAction(
-          action,
-          navRef.current,
-          snapshot,
-        )
-        void render()
       })()
     },
     [render],
@@ -253,6 +266,9 @@ export function useHishoGlasses(config: UseHishoGlassesConfig): void {
         // SDK 未提供（Web のみ）— グラス無しで継続
       }
       if (disposed) return
+      // raw SDK が無い（Web プレビュー等）環境では描画もポーリングもしない
+      // （無駄な 10Hz の no-op ポーリングを避ける）
+      if (!hub.rawBridge) return
       void render()
       pollTimer = setInterval(() => {
         const snapshot = configRef.current.getSnapshot()
