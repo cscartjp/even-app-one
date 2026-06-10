@@ -1,5 +1,6 @@
 import type { Dispatch } from 'react'
 import { type AskOutcome, askBridge } from '../api/bridgeClient'
+import { autoProbeLine } from '../audio/ttsProbe'
 import type { Event } from './reducer'
 
 /** 会話セッション。固定 ID にすると Bridge 側で会話が継続する（previous_response_id）。 */
@@ -20,6 +21,12 @@ export interface RunAskOptions {
    */
   isCurrent?: () => boolean
   sessionId?: string
+  /**
+   * TTS 実機プローブ（Phase 7）の自動発話フック。回答テキストを受け、ON のとき
+   * グラス追記用の verdict 1 行を、OFF（既定）のとき null を返す。既定は env gate 付き
+   * 実プローブ（`autoProbeLine`）。テストでは注入して env/window 非依存にする。
+   */
+  probe?: (answerText: string) => string | null
 }
 
 /**
@@ -33,14 +40,22 @@ export async function runAsk(
   text: string,
   options: RunAskOptions = {},
 ): Promise<void> {
-  const { ask = askBridge, isCurrent, sessionId = ASK_SESSION_ID } = options
+  const {
+    ask = askBridge,
+    isCurrent,
+    sessionId = ASK_SESSION_ID,
+    probe = autoProbeLine,
+  } = options
   dispatch({ type: 'ASK', label })
   const outcome = await ask(sessionId, text, 'short')
   if (isCurrent && !isCurrent()) return
   if (outcome.ok) {
     const { pages, text: ans } = outcome.result
     const next = pages.length > 0 ? pages : ans ? [ans] : ['(回答がありません)']
-    dispatch({ type: 'ANSWERED', pages: next })
+    // Phase 7 プローブ: ON のとき verdict 1 行を pages 末尾に追記してグラスに出す。
+    // OFF（既定）のとき probe は null を返し、dispatch は現行とバイト等価（完全 no-op）。
+    const verdict = probe(ans || next.join(' '))
+    dispatch({ type: 'ANSWERED', pages: verdict ? [...next, verdict] : next })
   } else {
     dispatch({ type: 'FAIL', error: outcome.error })
   }

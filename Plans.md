@@ -5,7 +5,7 @@
 Even G2 から Mac 上の Hermes Agent へ問い合わせるブリッジ。テキスト PoC（Phase 1）→ コンパニオン カスタム質問（Phase 2）→ 音声入力（Phase 3）→ 待ち時間 UX（Phase 4）と段階的に拡張中。
 
 - **product contract（正本）**: `docs/spec/g2-hermes-bridge.md`（デスクトップ仕様書を 2026-06-08 にリポジトリへ取り込み）
-- **サブ spec**: `docs/spec/g2-hermes-companion-custom-questions.md`（Phase 2）/ `docs/spec/g2-hermes-phase3-voice.md`（Phase 3）/ `docs/spec/g2-hermes-waiting-spinner.md`（Phase 4・issue #36）
+- **サブ spec**: `docs/spec/g2-hermes-companion-custom-questions.md`（Phase 2）/ `docs/spec/g2-hermes-phase3-voice.md`（Phase 3）/ `docs/spec/g2-hermes-waiting-spinner.md`（Phase 4・issue #36）/ `docs/spec/g2-hermes-tts-probe.md`（Phase 7・TTS 実機プローブ）
 - **precedence**: `g2-hermes-bridge.md` > 各サブ spec > 本 `Plans.md`
 
 > 関連: 過去の経緯は memory `hisho-train-app-design` / `g2-sideload-workflow` / `reference_hub_dev_mode` / `stt-mac-b-mlx-whisper` / `g2-hermes-bridge-progress`。
@@ -155,6 +155,36 @@ Hermes Agent API Server（`hermes gateway`）
 
 > **実装メモ（2026-06-10・6.1〜6.3 完了）**: 採用経路 = **raw SDK 直叩き**（even-toolkit `useGlasses` のホームは単一テキストコンテナ方式で border 付き複数コンテナの注入 hook が無いため）。6.1 スパイクでシミュレーターの角丸枠描画を確認しユーザー Go。本実装（6.2）は **Hisho 専用ドライバ `useHishoGlasses.ts`** を新設し、ホーム/テキスト画面を raw SDK（`rebuildPageContainer`＋無ちらつき `textContainerUpgrade`）で描画、**split（gourmetNearby）の精密 3 ペインは既存 `EvenHubBridge.show/updateSplitPage` をそのまま再利用**（書き直さず・二重 createStartUp 回避のため init で `showTextPage` を 1 回消化）。入力（`onGlassAction`）・events・shutdown は無改変。ホームは `homeCards.ts`（ピュア・8 test green）で「ステータスバー(version+時計)＋最寄駅＋電車カード＋グルメカード＋ヒント」を構成。**選択は案 b＝静的角丸枠＋▶ content カーソル**（`isItemSelectBorderEn` は list 化が必要で分離カードを失うため不採用・枠トグル rebuild も不採用＝無ちらつき）。box-drawing（`train.ts`/`shared.ts`）無改変・`apps/hisho` 限定（g2hermes / even-toolkit 無改変）。検証（6.3）= シミュレーターで home(カード)/電車/グルメ/グルメ近隣(split)/駅選択の全遷移・選択移動・戻るを目視 PASS（console エラー 0）、`bun test` 11 pass・`biome check` 0・`bun run build` 成功。次: Codex Review → PR → bot ループ → squash merge。6.4（wiki 反映＋#37 結論コメント・正本モック反映）は merge 後＋別途承認。
 
+## Phase 7: TTS 実機プローブ（音声応答の実装可否を実機で確定）
+
+> **G2 Hermes ワークストリーム**（`apps/g2hermes` のみ。Bridge / STT / コンパニオン / `apps/hisho` は無改変）。
+> Spec delta: `docs/spec/g2-hermes-tts-probe.md` を新設。precedence: `g2-hermes-bridge.md` > `g2-hermes-phase3-voice.md` > `g2-hermes-tts-probe.md` > 本 `Plans.md`。
+> **目的**: 回答テキストの音声読み上げ（方式1 Web Speech API が本命 / 方式2-3 は MP3）の実装可否を、**ユーザー実機 iPhone で前面/背面の鳴動可否**として確定する。本実装ではなく feasibility probe。
+> **確定事実（調査済み・2026-06-11）**: WebView=Flutter（iOS=WKWebView）。Android System WebView は `speechSynthesis` 非対応（方式1は実質 iPhone 専用）。WKWebView は**背面化・画面ロックで音声停止**の既知バグ（方式1/2/3 共通の壁）。iOS は**初回 speak() に user activation を要求**する版あり。→ 机上断定不能、実機プローブで決める。
+> **Skeptic 反映**: 前面で鳴らない場合に「ジェスチャ制約」か「背面suspend」かを弁別するため、**自動発話（回答後タップ無し）と ジェスチャ発話（タップ/CLICK 起点）の両方を測る**。
+> **非破壊の核**: プローブは `VITE_TTS_PROBE`（既定 OFF）でのみ有効。OFF 時 `ask.ts` はバイト等価（フック完全 no-op）。**ネットワークは増やさない**（on-device TTS + data-URI のみ・whitelist/CORS 変更なし）。
+> team_validation_mode: `manual-pass`（`everything-evenhub:sdk-reference` で WebView=Flutter を確認・Web 一次情報を複数ソースでクロスチェック・コードベースは Explore サブエージェントで地図化・memory `g2-hermes-bridge-progress` 参照）。Product/Architecture/Security/QA/Skeptic を単独で分けて評価済。
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 7.0 | プローブ足場: `app.json` version 0.2.6→0.2.7、`VITE_TTS_PROBE` フラグを `vite-env.d.ts` の `ImportMetaEnv` に追加（既定 OFF・Vite が `VITE_` env を `import.meta.env` に自動注入するため `define` 不要）。sub-spec は作成済 [tdd:skip:build-config] | `tsc -b` エラー 0・`bun run build` 成功・`git diff app.json` が version のみ・フラグ未設定時 `import.meta.env.VITE_TTS_PROBE` が falsy | - | cc:完了 |
+| 7.1 | ピュア probe コア `apps/g2hermes/src/audio/ttsProbe.ts`: capability 検出（`'speechSynthesis' in window` / `getVoices()` を `voiceschanged` で settle し ja-JP 有無）、verdict→グラス1行整形（例 `🔊spk=Y aud=N v=3`）、gate 判定（`VITE_TTS_PROBE` falsy なら何もしない）。`window.speechSynthesis` を mock してテスト [tdd:required] | capability 整形・verdict 整形・gate のユニットテスト green（mock で voices 0件/ja有/未対応の3系統）・副作用 import なし | 7.0 | cc:完了 |
+| 7.2 | `ask.ts` への最小フック: `ANSWERED` dispatch 直前にプローブ呼び出し。**フラグ OFF で完全 no-op（既存テスト不変・dispatch 列が等価）**。ON のとき verdict 1 行を回答 pages 末尾に追記してグラス表示 [tdd:required] | フラグ OFF で `runAsk` の dispatch（ASK→ANSWERED）が現行と等価なテスト green・ON で pages 末尾に verdict 行が付くテスト green・`biome check` 0 | 7.1 | cc:完了 |
+| 7.3 | 実発話ランナー（device-io）: `SpeechSynthesisUtterance`(lang ja-JP) の `speak()` と data-URI 短音の `new Audio().play()` を実行し、`onerror`/promise reject を捕捉して結果を返す。**自動発話（回答後）と ジェスチャ発話（グラス CLICK / 送信タップ起点）の2経路**を用意 [tdd:skip:device-io] | ビルドに含まれ・前面で console に capability と各経路の試行結果が出る（Safari Web Inspector で確認可）・型チェック/biome 0 | 7.2 | cc:完了 |
+| 7.4 | 検証 + プローブ用 `.ehpk`: `bun test` green / `biome check` 0 / `bun run build` 成功。**`.env` のある場所で `VITE_TTS_PROBE=1` でビルド → `evenhub pack`（直叩き・build→pack 順）**。bundle 検証: 実 BASE 値・version 0.2.7 を `rg` でヒット確認、ENV 未設定警告がログに無い [tdd:skip:verify] | 3 コマンド green + `g2hermes-tts-probe.ehpk` 生成 + bundle `rg` 検証 PASS（実 BASE 値・0.2.7） | 7.3 | cc:完了 |
+| 7.5 | **実機 E2E プローブ（ユーザー実施）**: iPhone へサイドロード。matrix を取る — ②前面・自動 / ③前面・ジェスチャ / ④背面(画面ロック)・自動 × {`speechSynthesis`, `Audio`}。各セルの鳴動可否を聴覚＋グラス verdict 行で記録。前面は Safari Web Inspector で `getVoices()` も確認 [tdd:skip:integration-e2e] | 鳴動可否 matrix が記録され、方式1の go/no-go と「ジェスチャ制約 vs 背面suspend」の弁別が付く。実機はユーザー | 7.4 | cc:TODO |
+| 7.6 | 結論を sub-spec / memory（`g2-hermes-bridge-progress`）に反映し、次手を分岐記録（前面OK→方式1本実装へ新 Phase / 背面必須→Even 社へネイティブ再生 API 要望） [tdd:skip:docs] | sub-spec に matrix 結果と判断・memory 更新・次 Phase の方針 1 行 | 7.5 | cc:TODO |
+
+**Phase 7 プロセス**: ブランチ `feat/g2hermes-tts-probe` → コード作業前に `andrej-karpathy-skills:karpathy-guidelines` invoke → Codex Review（`/codex:review`）→ PR → bot レビューループ（CodeRabbit / Copilot / CI green）→ squash merge。プローブ `.ehpk` のサイドロードと matrix 取得はユーザー。
+
+### Phase 7 スコープ外
+
+- MP3 生成（Bridge）/ `audioUrl` 配信 / network whitelist 追加 / CORS（方式2-3 の本実装。プローブはネットワークを増やさない）。
+- 本番読み上げ UX（停止制御・ページ同期・話速/音声選択）。
+- Android 対応（System WebView が `speechSynthesis` 非対応のため方式1では原理的に不可。必要なら別途ネイティブ polyfill 検討）。
+
+---
+
 ## 制約
 
 - **Phase 2–4（G2 Hermes 作業）では `apps/hisho/` を改変しない**（読み取り・参照のみ）。**Phase 5–6 は Hisho ワークストリーム＝`apps/hisho/` が対象**。どの Phase でも `apps/hisho/preview/design-mock.html`（UI デザイン正本）は保護ファイルで無改変（spike はコピー `design-mock-card-spike.html` を使用・正本反映は別途承認）。
@@ -175,7 +205,7 @@ Hermes Agent API Server（`hermes gateway`）
 
 ### Notes
 
-- Created via: harness-plan create（サブエージェント検証付き・Phase 0/1/3 = 2026-06-08、Phase 2 = 2026-06-09、Phase 4 = 2026-06-09、**Phase 5/6（Hisho・issue #44/#37）= 2026-06-10・everything-evenhub 公式スキル sdk-reference/glasses-ui/design-guidelines で裏付け**）
+- Created via: harness-plan create（サブエージェント検証付き・Phase 0/1/3 = 2026-06-08、Phase 2 = 2026-06-09、Phase 4 = 2026-06-09、**Phase 5/6（Hisho・issue #44/#37）= 2026-06-10・everything-evenhub 公式スキル sdk-reference/glasses-ui/design-guidelines で裏付け**、**Phase 7（TTS 実機プローブ）= 2026-06-11・WebView=Flutter を sdk-reference で確認＋WKWebView 背面suspend/Android 非対応を Web 一次情報で複数ソース確認・Explore で差し込み点を地図化**）
 - 二正本: product contract = `docs/spec/g2-hermes-bridge.md`（+ サブ spec 3 本）、task ledger = 本 `Plans.md`
 - **Hisho ワークストリーム（Phase 5/6）の詳細計画・公式スキル根拠 = `docs/plans/hisho-cards-version.md`**
 - アーカイブ: `docs/plans/g2-hermes-bridge-phase0-1.md`（Phase 0/1）/ `docs/plans/g2-hermes-phase2-3.md`（Phase 2/3 完了タスク詳細）
