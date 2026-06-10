@@ -27,6 +27,19 @@ grep is not installed on this machine and commands will fail.
 - このファイルへの書き込み・cp・再生成出力は禁止。`bun run preview:screens` の出力先は `app/preview/index.html` のみ
 - デザイン変更はユーザーの明示承認後に chmod で解除してから行う
 
+## バージョン表示付きアプリの作業ルール（必読）
+
+以下のアプリは画面にアプリ版（app.json の `version`）を表示する仕組みを持つ。
+**これらのアプリのコードを変更する作業を始める前に、必ず該当 `app.json` の `version` を確認し、patch を 1 つ上げてから作業する**（特別な指示がない限り）。
+
+- 例: `0.0.1` → `0.0.2`、`0.2.3` → `0.2.4`
+- 対象アプリ:
+  - `apps/hisho/app.json`（ステータスバーに `HISHO v<version>`）
+  - `apps/g2hermes/app.json`（ヘッダーに `G2 Hermes v<version>`）
+- ユーザーが具体的な version を指定した場合（例: minor/major を上げる、特定値にする）はそれに従う。
+
+仕組み（共通）: `app.json` の `version` を `vite.config.ts` の `define` で `__APP_VERSION__` として build 時にリテラル注入し、画面コードが `appVersion()` 経由で表示する。Vite を介さない実行（`bun test`）は `'0.0.0-dev'` にフォールバックする。
+
 ## リポジトリの目的
 
 Even Realities のスマートグラス **Even G2** 向けアプリ（Even Hub プラグイン）を開発する個人の趣味プロジェクト。Even Realities 社とは無関係（非公式）。

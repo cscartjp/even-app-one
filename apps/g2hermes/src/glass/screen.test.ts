@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { initialState, type State } from './reducer'
-import { hermesScreen, thinkingSpinner, transcribingSpinner } from './screen'
+import {
+  appVersion,
+  hermesScreen,
+  thinkingSpinner,
+  transcribingSpinner,
+} from './screen'
 
 const nav = { highlightedIndex: 0, screen: 'home' }
 const snap = (over: Partial<State>) => ({
@@ -51,5 +56,17 @@ describe('display スピナー統合', () => {
     expect(a).toEqual(b)
     const joined = a.lines.map((l) => l.text).join('\n')
     expect(joined).toContain('REC ●')
+  })
+})
+
+describe('バージョン表示（app.json version の build 時注入）', () => {
+  test('appVersion は Vite 未注入時 0.0.0-dev にフォールバック', () => {
+    // bun test は __APP_VERSION__ を define しないので fallback を返す
+    expect(appVersion()).toBe('0.0.0-dev')
+  })
+
+  test('header 先頭行に「G2 Hermes v<version>」を表示', () => {
+    const { lines } = hermesScreen.display(snap({ phase: 'idle' }), nav)
+    expect(lines[0]?.text).toBe(`G2 Hermes v${appVersion()}`)
   })
 })
