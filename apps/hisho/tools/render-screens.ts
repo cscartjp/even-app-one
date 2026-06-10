@@ -25,9 +25,14 @@ import type { AppSnapshot } from '../src/glass/shared'
 // このプレビューは Vite を介さず bun で実行するため、build と同じく app.json の
 // version を globalThis に供給し、statusBarLines が実バージョンを描画できるようにする。
 const previewGlobal = globalThis as { __APP_VERSION__?: string }
-previewGlobal.__APP_VERSION__ = JSON.parse(
+const previewAppVersion = JSON.parse(
   readFileSync(`${import.meta.dir}/../app.json`, 'utf-8'),
 ).version
+// vite.config と同じ「非空文字列必須」契約を踏襲（不正なら HISHO vundefined を出さず throw）
+if (typeof previewAppVersion !== 'string' || previewAppVersion.length === 0) {
+  throw new Error('apps/hisho/app.json の version が不正です（非空の文字列が必要）')
+}
+previewGlobal.__APP_VERSION__ = previewAppVersion
 
 // AppGlasses.tsx と同じルート定義・画面マッピング
 const GLASS_ROUTES = {
