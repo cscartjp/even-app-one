@@ -146,12 +146,14 @@ Hermes Agent API Server（`hermes gateway`）
 
 | Task | 内容 | DoD | Depends | Status |
 |------|------|-----|---------|--------|
-| 6.1 | **Stage B（見え方確認＋統合経路の確定）**: raw SDK 直叩き（推奨）か even-toolkit `setBorder()` で border 付きコンテナを最小構成、シミュレーターでスクショ（`everything-evenhub:test-with-simulator` / `simulator-automation`） [tdd:skip:spike-integration] | 角丸枠の見え方をスクショ確認 + 採用経路（raw SDK / sdk-wrapper）を記録。割に合わなければ wiki「線と枠の描画」に記録して #37 クローズ | - | cc:TODO |
-| 6.2 | 採用経路で **Hisho ホームをカード化**（「電車情報」「グルメ情報」を `borderWidth>0`/`borderRadius`/`paddingLength` 付き text コンテナに）。box-drawing（`train.ts`/`shared.ts`）無改変。**選択表現は (a) list コンテナ化して `isItemSelectBorderEn`（無ちらつき）か (b) 静的枠＋content カーソル/反転**（border トグルの毎回 rebuild は避ける） [tdd:required] | ホームがカード描画・選択ロジックのテスト green | 6.1 | cc:TODO |
-| 6.3 | 検証: 10 行・幅に収まる / box-drawing と共存 / 選択移動で不要な全画面ちらつき無し をシミュレータースクショ（`test-with-simulator`）。`bun test` green / `bun run check` 0 / `bun run build` 成功 [tdd:skip:verify] | 3 条件のスクショ + 3 コマンド green | 6.2 | cc:TODO |
-| 6.4 | 結論を wiki concept「線と枠の描画」に反映。採用なら正本モック `design-mock.html` への反映は**別途ユーザー承認後**（保護ファイル） [tdd:skip:docs] | wiki 更新 + #37 最終結論コメント | 6.3 | cc:TODO |
+| 6.1 | **Stage B（見え方確認＋統合経路の確定）**: raw SDK 直叩き（推奨）か even-toolkit `setBorder()` で border 付きコンテナを最小構成、シミュレーターでスクショ（`everything-evenhub:test-with-simulator` / `simulator-automation`） [tdd:skip:spike-integration] | 角丸枠の見え方をスクショ確認 + 採用経路（raw SDK / sdk-wrapper）を記録。割に合わなければ wiki「線と枠の描画」に記録して #37 クローズ | - | cc:完了（採用経路=raw SDK 直叩き・シミュレーターで角丸枠 PASS・ユーザー Go） |
+| 6.2 | 採用経路で **Hisho ホームをカード化**（「電車情報」「グルメ情報」を `borderWidth>0`/`borderRadius`/`paddingLength` 付き text コンテナに）。box-drawing（`train.ts`/`shared.ts`）無改変。**選択表現は (a) list コンテナ化して `isItemSelectBorderEn`（無ちらつき）か (b) 静的枠＋content カーソル/反転**（border トグルの毎回 rebuild は避ける） [tdd:required] | ホームがカード描画・選択ロジックのテスト green | 6.1 | cc:完了（案b 採用＝静的角丸枠＋▶ content カーソル・`useHishoGlasses` ドライバ・homeCards 8 test green） |
+| 6.3 | 検証: 10 行・幅に収まる / box-drawing と共存 / 選択移動で不要な全画面ちらつき無し をシミュレータースクショ（`test-with-simulator`）。`bun test` green / `bun run check` 0 / `bun run build` 成功 [tdd:skip:verify] | 3 条件のスクショ + 3 コマンド green | 6.2 | cc:完了（シミュレーターで home/電車/グルメ/近隣split/駅選択 全遷移 PASS・console 0・3 コマンド green） |
+| 6.4 | 結論を wiki concept「線と枠の描画」に反映。採用なら正本モック `design-mock.html` への反映は**別途ユーザー承認後**（保護ファイル） [tdd:skip:docs] | wiki 更新 + #37 最終結論コメント | 6.3 | cc:TODO（merge 後に wiki 反映 + #37 結論コメント・正本モック反映は別途承認） |
 
 **Phase 6 プロセス**: ブランチ `feat/hisho-home-cards` → Codex Review → PR → bot レビューループ → squash merge。
+
+> **実装メモ（2026-06-10・6.1〜6.3 完了）**: 採用経路 = **raw SDK 直叩き**（even-toolkit `useGlasses` のホームは単一テキストコンテナ方式で border 付き複数コンテナの注入 hook が無いため）。6.1 スパイクでシミュレーターの角丸枠描画を確認しユーザー Go。本実装（6.2）は **Hisho 専用ドライバ `useHishoGlasses.ts`** を新設し、ホーム/テキスト画面を raw SDK（`rebuildPageContainer`＋無ちらつき `textContainerUpgrade`）で描画、**split（gourmetNearby）の精密 3 ペインは既存 `EvenHubBridge.show/updateSplitPage` をそのまま再利用**（書き直さず・二重 createStartUp 回避のため init で `showTextPage` を 1 回消化）。入力（`onGlassAction`）・events・shutdown は無改変。ホームは `homeCards.ts`（ピュア・8 test green）で「ステータスバー(version+時計)＋最寄駅＋電車カード＋グルメカード＋ヒント」を構成。**選択は案 b＝静的角丸枠＋▶ content カーソル**（`isItemSelectBorderEn` は list 化が必要で分離カードを失うため不採用・枠トグル rebuild も不採用＝無ちらつき）。box-drawing（`train.ts`/`shared.ts`）無改変・`apps/hisho` 限定（g2hermes / even-toolkit 無改変）。検証（6.3）= シミュレーターで home(カード)/電車/グルメ/グルメ近隣(split)/駅選択の全遷移・選択移動・戻るを目視 PASS（console エラー 0）、`bun test` 11 pass・`biome check` 0・`bun run build` 成功。次: Codex Review → PR → bot ループ → squash merge。6.4（wiki 反映＋#37 結論コメント・正本モック反映）は merge 後＋別途承認。
 
 ## 制約
 
