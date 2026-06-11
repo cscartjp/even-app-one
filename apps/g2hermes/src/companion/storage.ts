@@ -105,7 +105,9 @@ function createJsonStore<T>(
         // bridge 不在は localStorage フォールバック（未設定は parse('') で default）。
         return parseValue(safeGetItem(key) ?? '')
       } catch {
-        return parseValue('')
+        // bridge 読み出しが例外を投げても localStorage の既存値を拾う（固定 default で
+        // 上書きすると localStorage に残る設定/プリセットが失われる・CodeRabbit Major）。
+        return parseValue(safeGetItem(key) ?? '')
       }
     },
 
@@ -127,8 +129,14 @@ function createJsonStore<T>(
           // bridge が後で利用可能になったときに flush する最新値として覚えておく。
           pendingBridgeSync = serialized
         } catch {
-          // 失敗は握り潰す（state がキャッシュを兼ね次回起動で再試行）。
-          // チェーン内で吸収して後続キューを壊さない。
+          // bridge 書き込み（or 取得）が失敗 → localStorage へ退避し、bridge 復帰時に
+          // pendingBridgeSync 経由で再同期されるようにする（再起動での消失を防ぐ・CodeRabbit Major）。
+          try {
+            ls().setItem(key, serialized)
+            pendingBridgeSync = serialized
+          } catch {
+            // 最終退避（localStorage も不可）は握り潰す。後続キューは壊さない。
+          }
         }
       })
       return saveQueue

@@ -100,3 +100,53 @@ describe('presets と settings はキーが衝突しない', () => {
     expect(await presetStore.loadPresets()).not.toEqual(DEFAULT_PRESETS)
   })
 })
+
+describe('createJsonStore — bridge 例外時の localStorage フォールバック（CodeRabbit Major）', () => {
+  test('bridge.getLocalStorage が reject しても localStorage の既存値を採用', async () => {
+    const { ls, store: lsMem } = memoryLocalStorage()
+    lsMem.set(SETTINGS_KEY, JSON.stringify({ voiceAnswer: true }))
+    const throwingBridge: StorageBridge = {
+      async getLocalStorage() {
+        throw new Error('bridge read boom')
+      },
+      async setLocalStorage() {},
+    }
+    const store = createSettingsStore({
+      getBridge: async () => throwingBridge,
+      localStorage: ls,
+    })
+    // 固定 default ではなく localStorage の既存値が採用される
+    expect(await store.loadSettings()).toEqual({ voiceAnswer: true })
+  })
+
+  test('bridge.setLocalStorage が reject したら localStorage へ退避し次回 bridge へ flush', async () => {
+    const { ls, store: lsMem } = memoryLocalStorage()
+    let failNext = true
+    const brWrites: string[] = []
+    const flakyBridge: StorageBridge = {
+      async getLocalStorage() {
+        return ''
+      },
+      async setLocalStorage(_key, value) {
+        if (failNext) throw new Error('bridge write boom')
+        brWrites.push(value)
+      },
+    }
+    const store = createSettingsStore({
+      getBridge: async () => flakyBridge,
+      localStorage: ls,
+    })
+
+    // 1) bridge 書き込み失敗 → localStorage へ退避（再起動でも残る）
+    await store.saveSettings({ voiceAnswer: true })
+    expect(lsMem.get(SETTINGS_KEY)).toBe(JSON.stringify({ voiceAnswer: true }))
+
+    // 2) bridge 復帰 → 次の保存で pending(true) を flush してから新値(false)を書く
+    failNext = false
+    await store.saveSettings({ voiceAnswer: false })
+    const written = brWrites.map(
+      (v) => (JSON.parse(v) as { voiceAnswer: boolean }).voiceAnswer,
+    )
+    expect(written).toEqual([true, false])
+  })
+})
