@@ -1,26 +1,35 @@
 import cors from '@fastify/cors'
 import Fastify, { type FastifyServerOptions } from 'fastify'
 import { z } from 'zod'
+import { synthesizeWav } from './aivis-client'
+import { parseRange } from './audio-range'
+import { type AudioStore, createAudioStore } from './audio-store'
 import { type BridgeConfig, VERSION } from './config'
 import {
+  type AskResult,
   askHermes,
   checkHermes,
   HermesTimeoutError,
   type SessionStore,
 } from './hermes-client'
 import { checkStt, SttTimeoutError, transcribeAudio } from './stt-client'
+import { createLimiter, shortenForSpeech } from './tts'
 
-/** buildServer の依存。`fetchImpl` を差し替えると Hermes をモックできる。 */
+/** buildServer の依存。`fetchImpl` を差し替えると Hermes/Aivis をモックできる。 */
 export interface BuildServerDeps {
   config: BridgeConfig
   fetchImpl?: typeof fetch
   logger?: FastifyServerOptions['logger']
+  /** WAV キャッシュ（省略時は config から生成）。テストで seed する用途で注入可能。 */
+  audioStore?: AudioStore
 }
 
 const AskSchema = z.object({
   sessionId: z.string().min(1),
   text: z.string().min(1),
   mode: z.enum(['short', 'normal']).default('short'),
+  // 音声回答（Phase 8）。既定 false。OFF のとき TTS は一切走らず回答は現行と等価。
+  tts: z.boolean().default(false),
 })
 
 /** 認証不要なパス（/health のみ）。OPTIONS は別途メソッドで除外する。 */
@@ -34,7 +43,31 @@ export function buildServer(deps: BuildServerDeps) {
   const { config } = deps
   const fetchImpl = deps.fetchImpl ?? fetch
   const sessions: SessionStore = new Map()
-  const app = Fastify({ logger: deps.logger ?? true })
+  const audioStore =
+    deps.audioStore ??
+    createAudioStore({
+      ttlSeconds: config.audioTtlSeconds,
+      maxEntries: config.audioMaxEntries,
+      maxBytes: config.audioMaxBytes,
+    })
+  // Aivis /synthesis の同時実行を絞る（重いため）。buildServer 内で 1 本共有する。
+  const ttsLimiter = createLimiter(config.ttsMaxConcurrency)
+  // 既定 logger は req.url の `/audio/<id>` を先頭6文字に切り詰める serializer を入れる
+  // （Fastify 組み込みの request ログに capability id 全体を残さないため・spec「id ログ非露出」）。
+  const app = Fastify({
+    logger: deps.logger ?? {
+      serializers: {
+        req(req) {
+          return {
+            method: req.method,
+            url: redactAudioId(req.url),
+            host: req.headers?.host,
+            remoteAddress: req.ip,
+          }
+        },
+      },
+    },
+  })
 
   // CORS: OPTIONS preflight と GET/POST に Access-Control-* を付与する。
   // preflight は @fastify/cors が onRequest で 204 応答して短絡するため、
@@ -56,19 +89,27 @@ export function buildServer(deps: BuildServerDeps) {
   )
 
   // WebView の実 Origin を採取する（仕様書のリスク3: iOS WKWebView が null を送る等の切り分け用）。
+  // url は `/audio/<id>` の id を切り詰めてログに残さない（spec「id ログ非露出」）。
   app.addHook('onRequest', async (req) => {
     req.log.info(
-      { origin: req.headers.origin ?? null, method: req.method, url: req.url },
+      {
+        origin: req.headers.origin ?? null,
+        method: req.method,
+        url: redactAudioId(req.url),
+      },
       'incoming request (origin capture)',
     )
   })
 
   // Bearer 認証。OPTIONS（preflight）と /health は除外し、CORS preflight を壊さない
   // （仕様書のリスク1: preHandler が OPTIONS を 401 で弾くバグの回避）。
+  // `/audio/<id>` は capability URL（256bit random id）として Bearer をスキップする。
+  // `new Audio()` は Authorization を付けられないため。完全一致 set では動的 id が 401 になるので
+  // **prefix 判定**で除外する（voice-answer spec の必須要件・Codex P2）。
   app.addHook('preHandler', async (req, reply) => {
     if (req.method === 'OPTIONS') return
     const path = req.url.split('?')[0] ?? req.url
-    if (PUBLIC_PATHS.has(path)) return
+    if (PUBLIC_PATHS.has(path) || path.startsWith('/audio/')) return
     if (extractBearerToken(req.headers.authorization) !== config.bridgeToken) {
       return reply.code(401).send({ ok: false, error: 'unauthorized' })
     }
@@ -92,15 +133,15 @@ export function buildServer(deps: BuildServerDeps) {
         detail: parsed.error.issues,
       })
     }
-    const { sessionId, text, mode } = parsed.data
+    const { sessionId, text, mode, tts } = parsed.data
+    let result: AskResult
     try {
-      const result = await askHermes(
+      result = await askHermes(
         { config, sessions, fetchImpl },
         sessionId,
         text,
         mode,
       )
-      return reply.send(result)
     } catch (err) {
       if (err instanceof HermesTimeoutError) {
         return reply.code(504).send({ ok: false, error: 'hermes_timeout' })
@@ -110,6 +151,31 @@ export function buildServer(deps: BuildServerDeps) {
         error: 'hermes_unreachable',
         detail: errorMessage(err),
       })
+    }
+
+    // OFF（既定）はここで返す。新フィールドを足さず現行とバイト等価（audioUrl:null）。
+    if (!tts) return reply.send(result)
+
+    // ON: 表示用 text を短縮した speechText を Aivis で合成し、相対 audioUrl を付ける。
+    // 合成失敗/timeout は audioUrl:null に降格し、テキスト回答は必ず 200 で返す（graceful）。
+    const speechText = shortenForSpeech(result.text, config.ttsMaxChars)
+    try {
+      const wav = await ttsLimiter.run(() =>
+        synthesizeWav({ config, fetchImpl }, speechText),
+      )
+      const id = audioStore.put(wav)
+      req.log.info(
+        { id: `${id.slice(0, 6)}…`, bytes: wav.byteLength },
+        'tts synthesized',
+      )
+      return reply.send({ ...result, speechText, audioUrl: `/audio/${id}` })
+    } catch (err) {
+      // id は未発行なので露出しない。テキスト回答は維持し audioUrl だけ落とす。
+      req.log.warn(
+        { err: errorMessage(err) },
+        'tts synthesis failed; degrading to audioUrl:null',
+      )
+      return reply.send({ ...result, speechText, audioUrl: null })
     }
   })
 
@@ -150,11 +216,71 @@ export function buildServer(deps: BuildServerDeps) {
     }
   })
 
+  // 生成 WAV の capability 配信。Bearer はスキップ（256bit id で成立・上の preHandler 参照）。
+  // GET/HEAD のみ・Range 対応（206/416）・no-store。未知/期限切れは 404。
+  app.route({
+    method: ['GET', 'HEAD'],
+    url: '/audio/:id',
+    handler: async (req, reply) => {
+      const { id } = req.params as { id: string }
+      const entry = audioStore.get(id)
+      if (!entry) {
+        return reply.code(404).send({ ok: false, error: 'not_found' })
+      }
+      const total = entry.bytes
+      reply.header('Content-Type', 'audio/wav')
+      reply.header('Cache-Control', 'no-store, private')
+      reply.header('Accept-Ranges', 'bytes')
+      reply.header('Content-Disposition', 'inline')
+
+      const range = parseRange(req.headers.range, total)
+      if (range.type === 'unsatisfiable') {
+        reply.header('Content-Range', `bytes */${total}`)
+        return reply.code(416).send()
+      }
+      if (req.method === 'HEAD') {
+        // HEAD はメタデータのみ（本文なし）。全体長を返す。
+        reply.header('Content-Length', String(total))
+        return reply.code(200).send()
+      }
+      if (range.type === 'range') {
+        const chunk = entry.buf.subarray(range.start, range.end + 1)
+        reply.header(
+          'Content-Range',
+          `bytes ${range.start}-${range.end}/${total}`,
+        )
+        reply.header('Content-Length', String(chunk.byteLength))
+        return reply.code(206).send(chunk)
+      }
+      reply.header('Content-Length', String(total))
+      return reply.code(200).send(entry.buf)
+    },
+  })
+
+  // /audio/:id は GET/HEAD 以外を 405 にする（Fastify 既定の 404 ではなく明示）。
+  app.route({
+    method: ['POST', 'PUT', 'DELETE', 'PATCH'],
+    url: '/audio/:id',
+    handler: async (_req, reply) =>
+      reply
+        .code(405)
+        .header('Allow', 'GET, HEAD')
+        .send({ ok: false, error: 'method_not_allowed' }),
+  })
+
   return app
 }
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
+}
+
+/**
+ * `/audio/<id>` の id をログ用に先頭6文字へ切り詰める（capability id をログに残さない）。
+ * 他パスはそのまま返す。クエリ文字列は保持する。
+ */
+function redactAudioId(url: string): string {
+  return url.replace(/^(\/audio\/)([^/?]{1,6})[^/?]*/, '$1$2…')
 }
 
 /**
