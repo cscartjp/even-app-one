@@ -164,6 +164,14 @@ export function buildServer(deps: BuildServerDeps) {
         synthesizeWav({ config, fetchImpl }, speechText),
       )
       const id = audioStore.put(wav)
+      if (!id) {
+        // 総 byte 上限超過で保持できなかった → audioUrl:null に降格（404 を返さない）。
+        req.log.warn(
+          { bytes: wav.byteLength },
+          'tts wav exceeds cache cap; degrading to audioUrl:null',
+        )
+        return reply.send({ ...result, speechText, audioUrl: null })
+      }
       req.log.info(
         { id: `${id.slice(0, 6)}…`, bytes: wav.byteLength },
         'tts synthesized',

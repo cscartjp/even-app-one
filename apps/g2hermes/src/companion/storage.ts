@@ -65,6 +65,15 @@ function createJsonStore<T>(
 ): JsonStore<T> {
   const ls = (): StorageLocalStorage =>
     deps.localStorage ?? globalThis.localStorage
+  // localStorage の安全な読み出し（未提供環境では null）。bridge 空時の fallback 確認に使う。
+  const safeGetItem = (k: string): string | null => {
+    try {
+      const store = deps.localStorage ?? globalThis.localStorage
+      return store ? store.getItem(k) : null
+    } catch {
+      return null
+    }
+  }
   // 書き込み直列化キュー。連続編集で save が並列に呼ばれても呼び出し順を保つ。
   let saveQueue: Promise<void> = Promise.resolve()
   // bridge 未取得時に localStorage へ退避した最新値。bridge が遅れて利用可能になったら
@@ -76,11 +85,25 @@ function createJsonStore<T>(
     async load(): Promise<T> {
       try {
         const bridge = await deps.getBridge()
-        const raw = bridge
-          ? await bridge.getLocalStorage(key)
-          : ls().getItem(key)
-        // 未設定キーは bridge が ""・localStorage が null。どちらも parse('') で default になる。
-        return parseValue(raw ?? '')
+        if (bridge) {
+          const fromBridge = await bridge.getLocalStorage(key)
+          if (fromBridge) return parseValue(fromBridge)
+          // bridge にまだ無い → 起動直後の bridge タイムアウト中に localStorage だけへ
+          // フォールバック保存された値が、後の起動（bridge が即利用可）で bridge の空値に
+          // 負けて失われるのを防ぐ。localStorage に残っていれば採用し bridge へ移送する（Codex P2）。
+          const fromLocal = safeGetItem(key)
+          if (fromLocal) {
+            try {
+              await bridge.setLocalStorage(key, fromLocal)
+            } catch {
+              // 移送失敗は無視（次回再試行・今回は localStorage 値を採用）。
+            }
+            return parseValue(fromLocal)
+          }
+          return parseValue('')
+        }
+        // bridge 不在は localStorage フォールバック（未設定は parse('') で default）。
+        return parseValue(safeGetItem(key) ?? '')
       } catch {
         return parseValue('')
       }

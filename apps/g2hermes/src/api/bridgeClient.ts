@@ -23,6 +23,13 @@ if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
 const TIMEOUT_MS = 190_000
 
 /**
+ * TTS 要求（tts:true）時のクライアント側タイムアウト。Bridge は Hermes（最大 180s）に加えて
+ * Aivis 合成（全体 abort 既定 20s）＋ 同時実行リミッタ待ちを要し得るため、190s だと Hermes が
+ * 遅いケースで client が先に abort してしまう（Codex P2）。Aivis 分の余裕を上乗せする。
+ */
+const TTS_TIMEOUT_MS = 220_000
+
+/**
  * 文字起こしのクライアント側タイムアウト。Bridge→STT は既定 60s なので、
  * それを上回る値にして「Bridge は待っているのに client が先に切れる」を防ぐ（spec §4.2）。
  */
@@ -60,7 +67,11 @@ export async function askBridge(
     return { ok: false, error: 'Bridge 未設定（.env を確認）' }
   }
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  // tts:true は Aivis 合成分サーバ処理が伸びるため長めの上限を使う。
+  const timer = setTimeout(
+    () => controller.abort(),
+    tts ? TTS_TIMEOUT_MS : TIMEOUT_MS,
+  )
   try {
     const res = await fetch(`${BRIDGE_BASE}/v1/ask`, {
       method: 'POST',

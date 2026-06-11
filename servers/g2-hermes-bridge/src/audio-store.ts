@@ -9,8 +9,12 @@ export interface AudioEntry {
 
 /** WAV の in-memory TTL キャッシュ。capability id（256bit random）で引く。 */
 export interface AudioStore {
-  /** WAV を格納し capability id（base64url）を返す。三重上限超過は古い順 evict。 */
-  put(buf: Buffer): string
+  /**
+   * WAV を格納し capability id（base64url）を返す。件数/総byte 超過は古い順 evict。
+   * 単体で総 byte 上限を超える WAV は保持できないため **null** を返す
+   * （呼び出し側で audioUrl:null に降格・直後 GET の 404 を避ける）。
+   */
+  put(buf: Buffer): string | null
   /** id で引く。未知・期限切れは null（期限切れは同時に削除する）。 */
   get(id: string): AudioEntry | null
   /** 現在の保持件数。 */
@@ -66,7 +70,10 @@ export function createAudioStore(opts: AudioStoreOptions): AudioStore {
   }
 
   return {
-    put(buf: Buffer): string {
+    put(buf: Buffer): string | null {
+      // 単体で総 byte 上限を超える WAV は入れても evictToLimits で即追い出される。
+      // id を返すと直後 GET が 404 になるため、保持せず null を返す（呼び出し側で null 降格）。
+      if (buf.byteLength > opts.maxBytes) return null
       const t = now()
       sweepExpired(t)
       const id = genId()
