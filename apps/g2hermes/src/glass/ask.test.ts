@@ -131,3 +131,88 @@ describe('runAsk（ask 配線：Phase 1 askBridge 経由）', () => {
     expect(seen).toEqual(['回答1 回答2'])
   })
 })
+
+// audioUrl 付きの成功 outcome（音声回答 ON で Bridge が払い出した相対 URL）。
+const audioOutcome = (audioUrl: string | null): AskOutcome => ({
+  ok: true,
+  result: {
+    ok: true,
+    sessionId: ASK_SESSION_ID,
+    responseId: null,
+    text: '回答',
+    pages: ['回答'],
+    audioUrl,
+  },
+})
+
+describe('runAsk（Phase 8 音声回答：tts 送信 + 再生）', () => {
+  test('設定 ON: ask に tts:true を渡し、audioUrl 有なら play(audioUrl) を呼ぶ', async () => {
+    let sentTts: boolean | undefined
+    const played: string[] = []
+    await runAsk(() => {}, 'q', 'q', {
+      ask: async (_sid, _txt, _mode, tts) => {
+        sentTts = tts
+        return audioOutcome('/audio/abc123')
+      },
+      probe: () => null,
+      tts: true,
+      play: (url) => played.push(url),
+    })
+    expect(sentTts).toBe(true)
+    expect(played).toEqual(['/audio/abc123'])
+  })
+
+  test('設定 OFF: ask に tts:false を渡し、再生しない', async () => {
+    let sentTts: boolean | undefined
+    const played: string[] = []
+    await runAsk(() => {}, 'q', 'q', {
+      ask: async (_sid, _txt, _mode, tts) => {
+        sentTts = tts
+        return audioOutcome('/audio/abc123') // たとえ audioUrl が来ても OFF なら鳴らさない
+      },
+      probe: () => null,
+      tts: false,
+      play: (url) => played.push(url),
+    })
+    expect(sentTts).toBe(false)
+    expect(played).toEqual([])
+  })
+
+  test('tts 未指定（既定）: tts は falsy で再生しない', async () => {
+    let sentTts: boolean | undefined
+    const played: string[] = []
+    await runAsk(() => {}, 'q', 'q', {
+      ask: async (_sid, _txt, _mode, tts) => {
+        sentTts = tts
+        return audioOutcome('/audio/abc123')
+      },
+      probe: () => null,
+      play: (url) => played.push(url),
+    })
+    expect(sentTts).toBe(false)
+    expect(played).toEqual([])
+  })
+
+  test('設定 ON だが audioUrl 無し（合成失敗で null）: 再生しない', async () => {
+    const played: string[] = []
+    await runAsk(() => {}, 'q', 'q', {
+      ask: async () => audioOutcome(null),
+      probe: () => null,
+      tts: true,
+      play: (url) => played.push(url),
+    })
+    expect(played).toEqual([])
+  })
+
+  test('isCurrent が false なら再生しない（古い世代の音を鳴らさない）', async () => {
+    const played: string[] = []
+    await runAsk(() => {}, 'q', 'q', {
+      ask: async () => audioOutcome('/audio/abc123'),
+      probe: () => null,
+      tts: true,
+      isCurrent: () => false,
+      play: (url) => played.push(url),
+    })
+    expect(played).toEqual([])
+  })
+})

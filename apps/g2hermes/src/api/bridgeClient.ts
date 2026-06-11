@@ -35,7 +35,10 @@ export interface AskResult {
   responseId: string | null
   text: string
   pages: string[]
-  audioUrl: null
+  /** 読み上げ用の短縮文（tts:true 時のみ付く・Phase 8）。 */
+  speechText?: string
+  /** 合成成功時のみ相対 URL（/audio/<id>）、それ以外は null。 */
+  audioUrl: string | null
 }
 
 /** 呼び出し結果。失敗はグラスに出す短いメッセージへ畳む（throw しない）。 */
@@ -51,6 +54,7 @@ export async function askBridge(
   sessionId: string,
   text: string,
   mode: 'short' | 'normal' = 'short',
+  tts = false,
 ): Promise<AskOutcome> {
   if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
     return { ok: false, error: 'Bridge 未設定（.env を確認）' }
@@ -64,7 +68,13 @@ export async function askBridge(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${BRIDGE_TOKEN}`,
       },
-      body: JSON.stringify({ sessionId, text, mode }),
+      // tts は ON のときだけ付ける（OFF/未設定は付けず現行リクエストとバイト等価）。
+      body: JSON.stringify({
+        sessionId,
+        text,
+        mode,
+        ...(tts ? { tts: true } : {}),
+      }),
       signal: controller.signal,
     })
     if (!res.ok) {
@@ -173,4 +183,22 @@ function isTranscribeResult(v: unknown): v is TranscribeResult {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
   return o.ok === true && typeof o.text === 'string' && typeof o.ms === 'number'
+}
+
+/**
+ * 回答音声（相対 audioUrl）をスマホスピーカーで再生する（Phase 8・device-io）。
+ * `new Audio(<BRIDGE_BASE>+audioUrl).play()`。Phase 7 プローブで Android 前面・背面とも
+ * 再生可と実機確認済み。play() の reject（自動再生制約・404 等）は握り潰してログのみ出し、
+ * グラスの回答表示は阻害しない（404 は TTL 失効などの正常系）。
+ */
+export function playAudio(audioUrl: string): void {
+  if (!BRIDGE_BASE) return
+  try {
+    const audio = new Audio(`${BRIDGE_BASE}${audioUrl}`)
+    void audio.play().catch((e) => {
+      console.warn('[g2hermes] 音声再生に失敗（無視して継続）', e)
+    })
+  } catch (e) {
+    console.warn('[g2hermes] 音声再生の初期化に失敗（無視して継続）', e)
+  }
 }
