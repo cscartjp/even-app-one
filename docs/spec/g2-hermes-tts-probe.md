@@ -63,4 +63,8 @@ Even G2 にはスピーカーが無く、音声は**スマホのスピーカー*
 
 - **Android = go（方式2/3）**: 回答読み上げは **サーバ生成 MP3 を `new Audio()`/`<audio>` で再生する方式2/3 が前面・背面とも有効**。G2 実利用（グラス装着・スマホはポケット＝背面）でも背面・画面オフで再生が通ることを実機で確認。**方式1（Web Speech API）は Android 非対応のため no-go**。
 - **iOS = 未判定**: iPhone 未所持。方式1の go/no-go と前面/背面差は iOS 実機が必要。必要になった時点で同 probe パッケージで再取得する。
-- **次手（本実装の本線）**: 方式2/3 を採用 — Bridge 側で回答テキスト→MP3 生成、`audioUrl` 配信、`app.json` の network whitelist 追加 + サーバ CORS。プローブ（`VITE_TTS_PROBE` gate）は本実装まで **OFF 既定で温存**（通常配布はバイト等価のまま）。
+- **次手（本実装の本線 = 方式3）**: 接続先 **Mac B（`100.88.141.39:8787` = Hermes Agent / Bridge ホスト）に OpenAI TTS が既に稼働し MP3 を生成できる**ため、**方式3（OpenAI TTS）を本線**とする。MP3 生成バックエンドは新規構築不要。これで本実装の 2 大不確実性（① Android 背面含む再生可否＝プローブで解消 / ② MP3 生成基盤の有無＝既存で解消）が両方とも潰れた。残りは配線のみ:
+  - Bridge: 回答に `audioUrl` を添える（または `/audio/<id>.mp3` で配信）。
+  - クライアント: `ANSWERED` で `new Audio(audioUrl).play()`（プローブ実証の経路そのまま・自動再生 OK）。
+  - ネットワーク: MP3 を **Bridge と同一 origin から配れば whitelist は既存テキスト API と共通で済む見込み**。`new Audio()` の単純再生は **CORS も不要**（Web Audio で波形を読まない限り）。→ whitelist 追加 / CORS は最小〜不要の可能性。
+- プローブ（`VITE_TTS_PROBE` gate）は本実装まで **OFF 既定で温存**（通常配布はバイト等価のまま）。
