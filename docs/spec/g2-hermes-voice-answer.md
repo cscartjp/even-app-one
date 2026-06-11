@@ -67,6 +67,7 @@ Even G2 にはスピーカーが無く、音声はスマホのスピーカー（
 - 軽い濫用対策: TTS 対象文字数制限＋（任意）簡易 rate limit。
 
 ### Bridge 環境変数（`servers/g2-hermes-bridge/.env`・server 側のみ。client bundle と無関係）
+
 | 変数 | 既定 | 必須 |
 |------|------|------|
 | `AIVIS_BASE_URL` | `http://127.0.0.1:10101` | ○ |
