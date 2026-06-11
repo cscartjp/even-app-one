@@ -42,3 +42,29 @@ Even G2 にはスピーカーが無く、音声は**スマホのスピーカー*
 ## 完了の定義（プローブとして）
 
 実機 matrix（②③④ × `speechSynthesis`/`Audio`）の鳴動可否が記録され、方式1の go/no-go と「前面限定で割り切るか／Even 社へネイティブ再生 API を要望するか」の判断材料が揃うこと。
+
+## 実機プローブ結果（7.5・Android）
+
+> 実機: **Android**（Even Hub「In Development」に probe-ON パッケージをアップして確認。サイドロードは未使用）。iPhone 未所持のため **iOS 側（②③④ × `speechSynthesis`）は未検証**。
+> パッケージ: `g2hermes-0.2.7-ttsprobe.ehpk`（`VITE_TTS_PROBE=1` でビルド・whitelist は実 Bridge origin）。
+> 確認手段: 聴覚（回答後に鳴る「ポッ」＝ `new Audio()` data-URI ビープ 100ms/440Hz）＋ グラス verdict 行 `🔊spk=N aud=Y v=0` の**両方が一致**。
+
+| ケース | `spk`（speechSynthesis の声）| `aud`（`new Audio()` 再生）| 判定 |
+|---|---|---|---|
+| ② 前面・自動（回答受領後にタップ無し）| N | **Y**（ポッ）| 方式2/3 可 |
+| ④ 背面・画面オフ・自動（別画面/画面オフ中に回答が返る）| N | **Y**（鳴った）| 方式2/3 可（本命）|
+| 方式1 `speechSynthesis` | N | — | Android 不可 |
+
+- `spk=N` / `v=0`: Android System WebView は `speechSynthesis` を持たず（`hasSpeechSynthesis=false`）、speak 経路は走らない。声は出ない＝想定どおり。
+- `aud=Y`: `new Audio(data-URI).play()` が前面・自動でも、**背面・画面オフでも**例外なく再生。iOS WKWebView の「背面で音が止まる既知バグ」に相当する挙動は **Android では観測されなかった**。
+- ③ ジェスチャ（review 画面の「タップ:送信」起点 = `AppGlasses.send`）は、②自動が既に通るため Android では切り分け不要（user activation 制約は iOS 固有）。
+
+## 結論（7.6・go/no-go）
+
+- **Android = go（方式2/3）**: 回答読み上げは **サーバ生成 MP3 を `new Audio()`/`<audio>` で再生する方式2/3 が前面・背面とも有効**。G2 実利用（グラス装着・スマホはポケット＝背面）でも背面・画面オフで再生が通ることを実機で確認。**方式1（Web Speech API）は Android 非対応のため no-go**。
+- **iOS = 未判定**: iPhone 未所持。方式1の go/no-go と前面/背面差は iOS 実機が必要。必要になった時点で同 probe パッケージで再取得する。
+- **次手（本実装の本線 = 方式3）**: 接続先 **Mac B（`100.88.141.39:8787` = Hermes Agent / Bridge ホスト）に OpenAI TTS が既に稼働し MP3 を生成できる**ため、**方式3（OpenAI TTS）を本線**とする。MP3 生成バックエンドは新規構築不要。これで本実装の 2 大不確実性（① Android 背面含む再生可否＝プローブで解消 / ② MP3 生成基盤の有無＝既存で解消）が両方とも潰れた。残りは配線のみ:
+  - Bridge: 回答に `audioUrl` を添える（または `/audio/<id>.mp3` で配信）。
+  - クライアント: `ANSWERED` で `new Audio(audioUrl).play()`（プローブ実証の経路そのまま・自動再生 OK）。
+  - ネットワーク: MP3 を **Bridge と同一 origin から配れば whitelist は既存テキスト API と共通で済む見込み**。`new Audio()` の単純再生は **CORS も不要**（Web Audio で波形を読まない限り）。→ whitelist 追加 / CORS は最小〜不要の可能性。
+- プローブ（`VITE_TTS_PROBE` gate）は本実装まで **OFF 既定で温存**（通常配布はバイト等価のまま）。
