@@ -12,14 +12,22 @@ export interface HermesDeps {
   fetchImpl?: typeof fetch
 }
 
-/** `/v1/ask` のレスポンス本体。 */
+/**
+ * `/v1/ask` のレスポンス本体。
+ * `text`（表示用回答）は無改変で温存する。音声回答（Phase 8）では `tts:true` のとき
+ * 呼び出し側（server.ts）が `speechText`（短縮した読み上げ文）と相対 `audioUrl`（/audio/<id>）を
+ * 追加する。`askHermes` 自身は常に `audioUrl: null`（TTS 非実行）で返す。
+ */
 export interface AskResult {
   ok: true
   sessionId: string
   responseId: string | null
   text: string
   pages: string[]
-  audioUrl: null
+  /** 読み上げ用の短縮文。`tts:true` かつ合成を試みたときだけ付く。 */
+  speechText?: string
+  /** 合成成功時のみ相対 URL（/audio/<id>）、それ以外は null。 */
+  audioUrl: string | null
 }
 
 /** Hermes へ届かない / エラー応答。呼び出し側で 502 にマップする。 */

@@ -3,6 +3,7 @@ import { type Dispatch, useCallback, useEffect, useMemo, useRef } from 'react'
 import { transcribe } from '../api/bridgeClient'
 import { encodeWav, isTooShort } from '../audio/capture'
 import { isProbeEnabled, runGestureProbe } from '../audio/ttsProbe'
+import type { Settings } from '../companion/settings'
 import { requestExit } from '../even/bridge'
 import { type LifecycleHandle, watchLifecycle } from '../even/lifecycle'
 import { type MicSession, startMicCapture } from '../even/mic-source'
@@ -21,6 +22,8 @@ interface AppGlassesProps {
   dispatch: Dispatch<Event>
   /** idle に併存させるプリセット質問（App が storage から読み、Companion 編集と共有）。 */
   presets: PresetQuestion[]
+  /** コンパニオン設定（音声で回答）。グラスの ask が tts:true を渡すかの判定に使う。 */
+  settings: Settings
 }
 
 /**
@@ -29,10 +32,18 @@ interface AppGlassesProps {
  * useGlasses が 100ms ポーリングで snapshot 参照の変化を検知して再描画するため、
  * dispatch で state が変わればグラス表示も追従する。
  */
-export function AppGlasses({ state, dispatch, presets }: AppGlassesProps) {
+export function AppGlasses({
+  state,
+  dispatch,
+  presets,
+  settings,
+}: AppGlassesProps) {
   // 最新 state を ref で参照する（lifecycle / 非同期コールバックの stale クロージャ回避）。
   const stateRef = useRef(state)
   stateRef.current = state
+  // 最新 settings を ref で参照する（ask コールバックの stale クロージャ回避）。
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
 
   // マイクは端末 1 つの toggle なので、起動/停止を 1 本の promise chain で直列化する
   // （交錯すると古い停止が新しい録音のマイクを閉じる。probe 実装から踏襲）。
@@ -89,6 +100,8 @@ export function AppGlasses({ state, dispatch, presets }: AppGlassesProps) {
       const gen = ++genRef.current
       await runAsk(dispatch, label, text, {
         isCurrent: () => gen === genRef.current,
+        // 設定「音声で回答」が ON のとき tts:true（最新値を ref から読む）。
+        tts: settingsRef.current.voiceAnswer,
       })
     },
     [dispatch],

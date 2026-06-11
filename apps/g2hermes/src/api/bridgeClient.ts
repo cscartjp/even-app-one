@@ -23,6 +23,13 @@ if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
 const TIMEOUT_MS = 190_000
 
 /**
+ * TTS 要求（tts:true）時のクライアント側タイムアウト。Bridge は Hermes（最大 180s）に加えて
+ * Aivis 合成（全体 abort 既定 20s）＋ 同時実行リミッタ待ちを要し得るため、190s だと Hermes が
+ * 遅いケースで client が先に abort してしまう（Codex P2）。Aivis 分の余裕を上乗せする。
+ */
+const TTS_TIMEOUT_MS = 220_000
+
+/**
  * 文字起こしのクライアント側タイムアウト。Bridge→STT は既定 60s なので、
  * それを上回る値にして「Bridge は待っているのに client が先に切れる」を防ぐ（spec §4.2）。
  */
@@ -35,7 +42,10 @@ export interface AskResult {
   responseId: string | null
   text: string
   pages: string[]
-  audioUrl: null
+  /** 読み上げ用の短縮文（tts:true 時のみ付く・Phase 8）。 */
+  speechText?: string
+  /** 合成成功時のみ相対 URL（/audio/<id>）、それ以外は null。 */
+  audioUrl: string | null
 }
 
 /** 呼び出し結果。失敗はグラスに出す短いメッセージへ畳む（throw しない）。 */
@@ -51,12 +61,17 @@ export async function askBridge(
   sessionId: string,
   text: string,
   mode: 'short' | 'normal' = 'short',
+  tts = false,
 ): Promise<AskOutcome> {
   if (!BRIDGE_BASE || !BRIDGE_TOKEN) {
     return { ok: false, error: 'Bridge 未設定（.env を確認）' }
   }
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  // tts:true は Aivis 合成分サーバ処理が伸びるため長めの上限を使う。
+  const timer = setTimeout(
+    () => controller.abort(),
+    tts ? TTS_TIMEOUT_MS : TIMEOUT_MS,
+  )
   try {
     const res = await fetch(`${BRIDGE_BASE}/v1/ask`, {
       method: 'POST',
@@ -64,7 +79,13 @@ export async function askBridge(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${BRIDGE_TOKEN}`,
       },
-      body: JSON.stringify({ sessionId, text, mode }),
+      // tts は ON のときだけ付ける（OFF/未設定は付けず現行リクエストとバイト等価）。
+      body: JSON.stringify({
+        sessionId,
+        text,
+        mode,
+        ...(tts ? { tts: true } : {}),
+      }),
       signal: controller.signal,
     })
     if (!res.ok) {
@@ -95,16 +116,19 @@ export async function askBridge(
 }
 
 /**
- * Bridge 応答が AskResult の最低限の形か実行時に検証する（`as` の素通しを防ぐ）。
- * 利用側が触る `text` / `pages`（文字列配列）だけを必須にする。
+ * Bridge 応答が AskResult の形か実行時に検証する（`as` の素通しを防ぐ）。
+ * `text` / `pages` に加え、Phase 8 で使う `audioUrl`（string|null・必須）と
+ * `speechText`（string|undefined・任意）も宣言と一致させて検証する（CodeRabbit 指摘）。
  */
-function isAskResult(v: unknown): v is AskResult {
+export function isAskResult(v: unknown): v is AskResult {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
   return (
     typeof o.text === 'string' &&
     Array.isArray(o.pages) &&
-    o.pages.every((p) => typeof p === 'string')
+    o.pages.every((p) => typeof p === 'string') &&
+    (typeof o.audioUrl === 'string' || o.audioUrl === null) &&
+    (o.speechText === undefined || typeof o.speechText === 'string')
   )
 }
 
@@ -173,4 +197,22 @@ function isTranscribeResult(v: unknown): v is TranscribeResult {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
   return o.ok === true && typeof o.text === 'string' && typeof o.ms === 'number'
+}
+
+/**
+ * 回答音声（相対 audioUrl）をスマホスピーカーで再生する（Phase 8・device-io）。
+ * `new Audio(<BRIDGE_BASE>+audioUrl).play()`。Phase 7 プローブで Android 前面・背面とも
+ * 再生可と実機確認済み。play() の reject（自動再生制約・404 等）は握り潰してログのみ出し、
+ * グラスの回答表示は阻害しない（404 は TTL 失効などの正常系）。
+ */
+export function playAudio(audioUrl: string): void {
+  if (!BRIDGE_BASE) return
+  try {
+    const audio = new Audio(`${BRIDGE_BASE}${audioUrl}`)
+    void audio.play().catch((e) => {
+      console.warn('[g2hermes] 音声再生に失敗（無視して継続）', e)
+    })
+  } catch (e) {
+    console.warn('[g2hermes] 音声再生の初期化に失敗（無視して継続）', e)
+  }
 }

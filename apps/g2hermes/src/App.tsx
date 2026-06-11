@@ -13,7 +13,13 @@ import {
   type Preset,
   validatePreset,
 } from './companion/presets'
-import { loadPresets, savePresets } from './companion/storage'
+import { DEFAULT_SETTINGS, type Settings } from './companion/settings'
+import {
+  loadPresets,
+  loadSettings,
+  savePresets,
+  saveSettings,
+} from './companion/storage'
 import { AppGlasses } from './glass/AppGlasses'
 import { runAsk } from './glass/ask'
 import { initialState, reduce } from './glass/reducer'
@@ -25,16 +31,25 @@ import { initialState, reduce } from './glass/reducer'
 export function App() {
   const [state, dispatch] = useReducer(reduce, initialState)
   const [presets, setPresets] = useState<Preset[]>(DEFAULT_PRESETS)
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   // ユーザーが編集を始めたか。起動時 loadPresets が遅れて解決した場合に編集を上書きしないためのフラグ。
   const dirtyRef = useRef(false)
+  // settings 版の dirty ガード（トグル操作が起動ロードに潰されないようにする）。
+  const settingsDirtyRef = useRef(false)
+  // ask 送信時に最新 settings を参照する（古いクロージャ回避・グラスへも props で配る）。
+  const settingsRef = useRef(settings)
+  settingsRef.current = settings
 
-  // 起動時に保存済み presets を読み込む（未保存/不正は loadPresets が DEFAULT_PRESETS を返す）。
+  // 起動時に保存済み presets / settings を読み込む（未保存/不正は default を返す）。
   useEffect(() => {
     let alive = true
     void loadPresets().then((p) => {
       // 先にユーザーが編集していたら（dirty）、起動ロード結果で編集中 state を潰さない
       // （bridge 待ち 1500ms / 実機初期化が遅い環境での編集ロストを防ぐ）。
       if (alive && !dirtyRef.current) setPresets(p)
+    })
+    void loadSettings().then((s) => {
+      if (alive && !settingsDirtyRef.current) setSettings(s)
     })
     return () => {
       alive = false
@@ -49,14 +64,22 @@ export function App() {
     if (canPersist(next)) void savePresets(next)
   }, [])
 
+  // 設定変更を state に反映し storage へ write-through（presets と別キー）。
+  const handleSettingsChange = useCallback((next: Settings) => {
+    settingsDirtyRef.current = true
+    setSettings(next)
+    void saveSettings(next)
+  }, [])
+
   // グラス（idle メニュー / askBridge）へは検証通過のプリセットだけ渡す。編集中の draft
   // （空ラベル / 空プロンプト等の不正要素）はスマホ editor にのみ見せ、idle 空行や空送信を防ぐ。
   const glassPresets = useMemo(() => presets.filter(validatePreset), [presets])
 
   // スマホ AskBox からのその場送信。共有 runAsk でグラスの ask と同一経路（Phase 1 askBridge）を流す。
   // 同じ reducer state を AskBox とグラスの両方が購読し、送信中/回答/エラーがミラー表示される。
+  // 設定「音声で回答」が ON なら tts:true を渡す（最新値を ref から読む）。
   const handleAsk = useCallback((text: string) => {
-    void runAsk(dispatch, text, text)
+    void runAsk(dispatch, text, text, { tts: settingsRef.current.voiceAnswer })
   }, [])
 
   // スマホ WebView は Companion（その場送信 + 編集 draft 全件）を描画。グラス表示は
@@ -68,8 +91,15 @@ export function App() {
         onPresetsChange={handlePresetsChange}
         state={state}
         onAsk={handleAsk}
+        settings={settings}
+        onSettingsChange={handleSettingsChange}
       />
-      <AppGlasses state={state} dispatch={dispatch} presets={glassPresets} />
+      <AppGlasses
+        state={state}
+        dispatch={dispatch}
+        presets={glassPresets}
+        settings={settings}
+      />
     </>
   )
 }

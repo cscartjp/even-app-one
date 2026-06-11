@@ -29,6 +29,28 @@ export interface BridgeConfig {
   sttTimeoutMs: number
   /** `/v1/transcribe` の WAV ボディ上限（bytes）。超過で 413。 */
   transcribeMaxBytes: number
+  /** listen するホスト。既定 `0.0.0.0`。本番は Tailscale IF の IP を BIND_HOST で指定して締める（Phase 8）。 */
+  bindHost: string
+  /** AivisSpeech Engine のベース URL（VOICEVOX 互換・loopback）。 */
+  aivisBaseUrl: string
+  /** Aivis の話者 ID（既定 まお／ノーマル）。URL クエリに載せるため文字列で保持。 */
+  aivisSpeakerId: string
+  /** `/audio_query` の fetch タイムアウト（ms）。超過で型付きエラー→audioUrl:null 降格。 */
+  aivisQueryTimeoutMs: number
+  /** `/synthesis` の fetch タイムアウト（ms）。合成は重いため query より長め。 */
+  aivisSynthesisTimeoutMs: number
+  /** Aivis 合成フロー全体の abort タイムアウト（ms）。query+synthesis の総和上限。 */
+  aivisAbortTimeoutMs: number
+  /** TTS 対象テキストの最大文字数。超過は切り詰め（長文読み上げの WAV 肥大を避ける）。 */
+  ttsMaxChars: number
+  /** Aivis `/synthesis` の同時実行上限（重いため絞る）。 */
+  ttsMaxConcurrency: number
+  /** audio キャッシュの TTL（秒）。 */
+  audioTtlSeconds: number
+  /** audio キャッシュの最大件数（超過は古い順 evict）。 */
+  audioMaxEntries: number
+  /** audio キャッシュの総 byte 上限（超過は古い順 evict）。 */
+  audioMaxBytes: number
 }
 
 /** 環境変数から設定を読む。未設定・不正値はローカル開発向けの既定値にフォールバックする。 */
@@ -46,6 +68,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): BridgeConfig {
       env.TRANSCRIBE_MAX_BYTES,
       2 * 1024 * 1024,
     ),
+    bindHost: env.BIND_HOST ?? '0.0.0.0',
+    aivisBaseUrl: env.AIVIS_BASE_URL ?? 'http://127.0.0.1:10101',
+    aivisSpeakerId: env.AIVIS_SPEAKER_ID ?? '888753760',
+    aivisQueryTimeoutMs: toPositiveInt(env.AIVIS_QUERY_TIMEOUT_MS, 5000),
+    aivisSynthesisTimeoutMs: toPositiveInt(
+      env.AIVIS_SYNTHESIS_TIMEOUT_MS,
+      15000,
+    ),
+    aivisAbortTimeoutMs: toPositiveInt(env.AIVIS_ABORT_TIMEOUT_MS, 20000),
+    ttsMaxChars: toPositiveInt(env.TTS_MAX_CHARS, 300),
+    ttsMaxConcurrency: toPositiveInt(env.TTS_MAX_CONCURRENCY, 2),
+    audioTtlSeconds: toPositiveInt(env.AUDIO_TTL_SECONDS, 300),
+    audioMaxEntries: toPositiveInt(env.AUDIO_MAX_ENTRIES, 100),
+    audioMaxBytes: toPositiveInt(env.AUDIO_MAX_BYTES, 209715200),
   }
 }
 
