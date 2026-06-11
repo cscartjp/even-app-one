@@ -70,8 +70,16 @@ export async function runAsk(
     const verdict = probe(ans || next.join(' '))
     dispatch({ type: 'ANSWERED', pages: verdict ? [...next, verdict] : next })
     // Phase 8: 設定 ON（tts）かつ audioUrl 有なら音声再生する。再生は fire-and-forget で
-    // 回答表示を阻害しない（audioUrl が無い＝合成失敗/未要求のときは何もしない）。
-    if (tts && audioUrl) play(audioUrl)
+    // 回答表示（上の ANSWERED）を阻害しない（audioUrl が無い＝合成失敗/未要求なら何もしない）。
+    // play が同期 throw しても runAsk を reject させない（呼び出し側は void runAsk なので
+    // 未処理例外になる・回答表示は既に済んでいる）。握り潰してログのみ（Copilot 指摘）。
+    if (tts && audioUrl) {
+      try {
+        play(audioUrl)
+      } catch (e) {
+        console.warn('[g2hermes] 音声再生の起動に失敗（無視して継続）', e)
+      }
+    }
   } else {
     dispatch({ type: 'FAIL', error: outcome.error })
   }

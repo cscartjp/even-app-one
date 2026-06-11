@@ -215,4 +215,21 @@ describe('runAsk（Phase 8 音声回答：tts 送信 + 再生）', () => {
     })
     expect(played).toEqual([])
   })
+
+  test('play が同期 throw しても runAsk は reject せず ANSWERED は dispatch 済み（Copilot 指摘）', async () => {
+    const store = makeStore()
+    // void runAsk(...) 相当で未処理例外にならないこと＝resolve すること、を検証する。
+    await expect(
+      runAsk(store.dispatch, 'q', 'q', {
+        ask: async () => audioOutcome('/audio/abc123'),
+        probe: () => null,
+        tts: true,
+        play: () => {
+          throw new Error('play boom')
+        },
+      }),
+    ).resolves.toBeUndefined()
+    expect(store.events.map((e) => e.type)).toEqual(['ASK', 'ANSWERED'])
+    expect(store.state.phase).toBe('answer')
+  })
 })

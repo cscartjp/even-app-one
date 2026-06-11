@@ -116,16 +116,19 @@ export async function askBridge(
 }
 
 /**
- * Bridge 応答が AskResult の最低限の形か実行時に検証する（`as` の素通しを防ぐ）。
- * 利用側が触る `text` / `pages`（文字列配列）だけを必須にする。
+ * Bridge 応答が AskResult の形か実行時に検証する（`as` の素通しを防ぐ）。
+ * `text` / `pages` に加え、Phase 8 で使う `audioUrl`（string|null・必須）と
+ * `speechText`（string|undefined・任意）も宣言と一致させて検証する（CodeRabbit 指摘）。
  */
-function isAskResult(v: unknown): v is AskResult {
+export function isAskResult(v: unknown): v is AskResult {
   if (typeof v !== 'object' || v === null) return false
   const o = v as Record<string, unknown>
   return (
     typeof o.text === 'string' &&
     Array.isArray(o.pages) &&
-    o.pages.every((p) => typeof p === 'string')
+    o.pages.every((p) => typeof p === 'string') &&
+    (typeof o.audioUrl === 'string' || o.audioUrl === null) &&
+    (o.speechText === undefined || typeof o.speechText === 'string')
   )
 }
 
