@@ -20,6 +20,9 @@ export interface Limiter {
  * 上限到達中の呼び出しは FIFO キューに積み、走っているジョブが終わるたび 1 本ずつ起動する。
  */
 export function createLimiter(max: number): Limiter {
+  // max が 1 未満（0/負/NaN）だと active<limit が常に false になり全ジョブがキューで
+  // 詰まりデッドロックするため、最低 1 に丸める。
+  const limit = max >= 1 ? Math.floor(max) : 1
   let active = 0
   const queue: Array<() => void> = []
 
@@ -34,9 +37,12 @@ export function createLimiter(max: number): Limiter {
       return new Promise<T>((resolve, reject) => {
         const start = () => {
           active++
-          fn().then(resolve, reject).finally(release)
+          // fn() が同期 throw しても Promise.resolve().then(fn) で reject に正規化し、
+          // 必ず finally で active を戻す。これがないと同期 throw 時に release が呼ばれず
+          // active が戻らないため、以後のジョブが永久に起動できなくなる（Copilot 指摘）。
+          Promise.resolve().then(fn).then(resolve, reject).finally(release)
         }
-        if (active < max) start()
+        if (active < limit) start()
         else queue.push(start)
       })
     },
