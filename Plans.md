@@ -5,7 +5,7 @@
 Even G2 から Mac 上の Hermes Agent へ問い合わせるブリッジ。テキスト PoC（Phase 1）→ コンパニオン カスタム質問（Phase 2）→ 音声入力（Phase 3）→ 待ち時間 UX（Phase 4）と段階的に拡張中。
 
 - **product contract（正本）**: `docs/spec/g2-hermes-bridge.md`（デスクトップ仕様書を 2026-06-08 にリポジトリへ取り込み）
-- **サブ spec**: `docs/spec/g2-hermes-companion-custom-questions.md`（Phase 2）/ `docs/spec/g2-hermes-phase3-voice.md`（Phase 3）/ `docs/spec/g2-hermes-waiting-spinner.md`（Phase 4・issue #36）/ `docs/spec/g2-hermes-tts-probe.md`（Phase 7・TTS 実機プローブ）
+- **サブ spec**: `docs/spec/g2-hermes-companion-custom-questions.md`（Phase 2）/ `docs/spec/g2-hermes-phase3-voice.md`（Phase 3）/ `docs/spec/g2-hermes-waiting-spinner.md`（Phase 4・issue #36）/ `docs/spec/g2-hermes-tts-probe.md`（Phase 7・TTS 実機プローブ）/ `docs/spec/g2-hermes-voice-answer.md`（Phase 8・音声回答 本実装＝Aivis WAV + audioUrl）
 - **precedence**: `g2-hermes-bridge.md` > 各サブ spec > 本 `Plans.md`
 
 > 関連: 過去の経緯は memory `hisho-train-app-design` / `g2-sideload-workflow` / `reference_hub_dev_mode` / `stt-mac-b-mlx-whisper` / `g2-hermes-bridge-progress`。
@@ -172,8 +172,8 @@ Hermes Agent API Server（`hermes gateway`）
 | 7.2 | `ask.ts` への最小フック: `ANSWERED` dispatch 直前にプローブ呼び出し。**フラグ OFF で完全 no-op（既存テスト不変・dispatch 列が等価）**。ON のとき verdict 1 行を回答 pages 末尾に追記してグラス表示 [tdd:required] | フラグ OFF で `runAsk` の dispatch（ASK→ANSWERED）が現行と等価なテスト green・ON で pages 末尾に verdict 行が付くテスト green・`biome check` 0 | 7.1 | cc:完了 |
 | 7.3 | 実発話ランナー（device-io）: `SpeechSynthesisUtterance`(lang ja-JP) の `speak()` と data-URI 短音の `new Audio().play()` を実行し、`onerror`/promise reject を捕捉して結果を返す。**自動発話（回答後）と ジェスチャ発話（グラス CLICK / 送信タップ起点）の2経路**を用意 [tdd:skip:device-io] | ビルドに含まれ・前面で console に capability と各経路の試行結果が出る（Safari Web Inspector で確認可）・型チェック/biome 0 | 7.2 | cc:完了 |
 | 7.4 | 検証 + プローブ用 `.ehpk`: `bun test` green / `biome check` 0 / `bun run build` 成功。**`.env` のある場所で `VITE_TTS_PROBE=1` でビルド → `evenhub pack`（直叩き・build→pack 順）**。bundle 検証: 実 BASE 値・version 0.2.7 を `rg` でヒット確認、ENV 未設定警告がログに無い [tdd:skip:verify] | 3 コマンド green + `g2hermes-tts-probe.ehpk` 生成 + bundle `rg` 検証 PASS（実 BASE 値・0.2.7） | 7.3 | cc:完了 |
-| 7.5 | **実機 E2E プローブ（ユーザー実施）**: iPhone へサイドロード。matrix を取る — ②前面・自動 / ③前面・ジェスチャ / ④背面(画面ロック)・自動 × {`speechSynthesis`, `Audio`}。各セルの鳴動可否を聴覚＋グラス verdict 行で記録。前面は Safari Web Inspector で `getVoices()` も確認 [tdd:skip:integration-e2e] | 鳴動可否 matrix が記録され、方式1の go/no-go と「ジェスチャ制約 vs 背面suspend」の弁別が付く。実機はユーザー | 7.4 | cc:TODO |
-| 7.6 | 結論を sub-spec / memory（`g2-hermes-bridge-progress`）に反映し、次手を分岐記録（前面OK→方式1本実装へ新 Phase / 背面必須→Even 社へネイティブ再生 API 要望） [tdd:skip:docs] | sub-spec に matrix 結果と判断・memory 更新・次 Phase の方針 1 行 | 7.5 | cc:TODO |
+| 7.5 | **実機 E2E プローブ（ユーザー実施）**: iPhone へサイドロード。matrix を取る — ②前面・自動 / ③前面・ジェスチャ / ④背面(画面ロック)・自動 × {`speechSynthesis`, `Audio`}。各セルの鳴動可否を聴覚＋グラス verdict 行で記録。前面は Safari Web Inspector で `getVoices()` も確認 [tdd:skip:integration-e2e] | 鳴動可否 matrix が記録され、方式1の go/no-go と「ジェスチャ制約 vs 背面suspend」の弁別が付く。実機はユーザー | 7.4 | cc:完了（Android で matrix 取得・方式2/3 go・方式1 no-go 確定。iOS は iPhone 未所持で保留＝意思決定に必要な go/no-go は確定） |
+| 7.6 | 結論を sub-spec / memory（`g2-hermes-bridge-progress`）に反映し、次手を分岐記録（前面OK→方式1本実装へ新 Phase / 背面必須→Even 社へネイティブ再生 API 要望） [tdd:skip:docs] | sub-spec に matrix 結果と判断・memory 更新・次 Phase の方針 1 行 | 7.5 | cc:完了（probe spec 7.6 更新＝本線を方式2 Aivis に確定・memory `g2-hermes-tts-probe-result` 反映済・次 Phase=Phase 8 本実装を `g2-hermes-voice-answer.md` で起票） |
 
 **Phase 7 プロセス**: ブランチ `feat/g2hermes-tts-probe` → コード作業前に `andrej-karpathy-skills:karpathy-guidelines` invoke → Codex Review（`/codex:review`）→ PR → bot レビューループ（CodeRabbit / Copilot / CI green）→ squash merge。プローブ `.ehpk` のサイドロードと matrix 取得はユーザー。
 
@@ -182,6 +182,39 @@ Hermes Agent API Server（`hermes gateway`）
 - MP3 生成（Bridge）/ `audioUrl` 配信 / network whitelist 追加 / CORS（方式2-3 の本実装。プローブはネットワークを増やさない）。
 - 本番読み上げ UX（停止制御・ページ同期・話速/音声選択）。
 - Android 対応（System WebView が `speechSynthesis` 非対応のため方式1では原理的に不可。必要なら別途ネイティブ polyfill 検討）。
+
+---
+
+## Phase 8: 音声回答 本実装（Aivis WAV + audioUrl 配線 + コンパニオン YES/NO 設定）
+
+> **G2 Hermes ワークストリーム**（`apps/g2hermes` ＋ `servers/g2-hermes-bridge`。`apps/hisho` / STT / Hermes Agent の TTS 設定は無改変）。
+> Spec delta: `docs/spec/g2-hermes-voice-answer.md` を新設。precedence: `g2-hermes-bridge.md` > `g2-hermes-voice-answer.md` > 本 `Plans.md`。
+> **目的**: Phase 7 で確定した「サーバ生成音声を `new Audio()` で前面・背面とも再生可（Android=go）」を受け、**Hermes 回答をユーザー設定（音声で回答 YES/NO・既定 OFF）に応じて音声でも返す**本実装。**本線=方式2（AivisSpeech・WAV をそのまま配信）**。音声生成は **G2 Bridge が Aivis Engine（`127.0.0.1:10101`・VOICEVOX 互換・既定話者 888753760・WAV 44100/mono/16bit）を直接叩く独立実装**。
+> **非破壊の核**: 設定 OFF のとき ask は `tts` を付けず Bridge も TTS を走らせない＝**回答挙動は現行と等価**。Aivis 障害時も **テキスト回答は必ず 200 で返り `audioUrl:null` に降格**（500 にしない）。`app.json` whitelist は **audioUrl が同一 origin 相対のため不変**。
+> **audioUrl 認証（Hermes レビュー＋Codex レビュー反映）**: `new Audio()` は Authorization を付けられないため `/audio/<id>` は Bearer スキップ。代償として **256bit random id（capability URL）＋ Range 対応（206/416）＋ GET/HEAD 限定（405）＋ `Cache-Control: no-store`＋ id ログ非露出** をセット必須で成立させる。**［Codex P2］認証除外は `/audio/` prefix 判定にする（現状の `PUBLIC_PATHS.has()` 完全一致では `/audio/<id>` が 401）。** **［Codex P2］現状 Bridge は `0.0.0.0` listen のため、bearerless `/audio` を他 IF から守るべく listen を Tailscale IF bind / firewall に締める（8.2 で要件化）。**
+> **team_validation_mode**: `manual-pass`（2026-06-11。Mac B の Hermes Agent＝AivisSpeech 構成オーナーと `hermes-chat` で連携し、Aivis API 形状・話者・WAV 仕様・合成実測〔15字≈1.2s/82字≈4.4s〕・timeout 目安を一次確定。audioUrl 配信のセキュリティ〔capability URL 成立条件・Range・総byte 上限・同時実行制限・speechText=短縮版〕を Hermes が独立レビューし反映。Product/Architecture/Security/QA/Skeptic を単独で分けて評価）。
+> **lint/format baseline**: TS = biome（`apps/g2hermes`・`servers/g2-hermes-bridge` とも設置済）。Bridge = bun test + Fastify + zod（既存）。新規設置不要。
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 8.0 | Spec delta（docs）: 本実装の product contract `docs/spec/g2-hermes-voice-answer.md` 新設（Aivis 連携契約・request `tts` flag・response は既存 `text` 温存＋`speechText`/`audioUrl` 追加・`/audio/<id>` capability 配信・in-memory TTL キャッシュ・graceful degradation・Bridge `.env` 変数）。`g2-hermes-tts-probe.md` 7.6 を本線=方式2(Aivis) に更新。Plans ヘッダー sub-spec 一覧に追加 [tdd:skip:docs] | sub-spec 作成・precedence 明記・probe 7.6 更新・Plans 参照追加 | - | cc:完了（2026-06-11・本計画作成と同時に作成） |
+| 8.1 | **Aivis クライアント** `servers/g2-hermes-bridge/src/aivis-client.ts`: `AIVIS_BASE_URL`/`AIVIS_SPEAKER_ID` 等を env から読み、`/audio_query`→`/synthesis` を叩いて WAV Buffer を返す。AbortController timeout（query 5s / synthesis 15s / 全体 20s・env 上書き可）。Aivis 未到達/timeout/非200 は **型付きエラー**で返す（呼び出し側で null 降格）。`fetch` を inject してテスト [tdd:required] | `bun test` green（query→synthesis の URL/method/body/speaker を inject mock で検証・timeout と非200 で型付きエラー・成功で WAV Buffer 返却）・`biome check` 0 | 8.0 | cc:TODO |
+| 8.2 | **audio ストア + 配信ルート**: in-memory TTL キャッシュ（`Map<id,{buf,expiresAt,bytes}>`・TTL/件数/総byte 三重上限・古い順 evict・**再生後即削除しない**）＋ `GET\|HEAD /audio/:id`。id=`crypto.randomBytes(32).toString("base64url")`。**Bearer 認証除外は `/audio/` prefix 判定**（`path.startsWith('/audio/')`。**現状の `PUBLIC_PATHS.has()` 完全一致では `/audio/<id>` が 401 になる＝Codex P2**）。`Content-Type: audio/wav`・`Content-Length`・`Cache-Control: no-store, private`・`Accept-Ranges: bytes`。**Range→206+Content-Range / 不正→416**。GET/HEAD 以外 405。未知/期限切れ→404。id はログに先頭6文字のみ。**［Codex P2 多層防御］`index.ts` の listen を `0.0.0.0` から Tailscale IF bind に変更（or OS firewall で `/audio` を他 IF から遮断）** [tdd:required（route）/ bind は tdd:skip:integration] | inject テスト green（保存→GET で同一 WAV・HEAD で本文無し+ヘッダ・**Range で 206+Content-Range / 不正 Range で 416**・未知 id 404・TTL/byte 超過で evict・GET/HEAD 以外 405）・**Bearer 無しで `/audio/<動的 id>` GET が 200（prefix 除外が動的 id に効く）**・bind 変更/firewall がコードレビューで確認・`biome check` 0 | 8.0 | cc:TODO |
+| 8.3 | **ask 回答経路に TTS opt-in 配線**: request に `tts?: boolean`（zod・既定 false）。**既存 `text` フィールドは無改変で温存**し、`speechText`（任意・初期=`text` を `TTS_MAX_CHARS` で短縮）と `audioUrl` を**追加**（**`text`→`answerText` 改名はしない＝Codex P2・OFF 等価/既存テスト不変**）。`tts:true` のとき speechText→8.1 で WAV→8.2 に保存→**相対** `audioUrl=/audio/<id>` 付与。同時合成は `TTS_MAX_CONCURRENCY`(2) に制限。Aivis 失敗/timeout は **`audioUrl:null`＋200＋structured log**（id 非露出）。音声入力経路（transcribe→回答）も同 ask 経路を再利用 [tdd:required] | inject テスト green（tts:true で audioUrl 付与・tts:false で audioUrl=null かつ Aivis 未呼び出し・Aivis 失敗で audioUrl=null だが 200+text・speechText が MAX_CHARS で切詰・同時実行上限）・既存 ask/transcribe テスト不変・`biome check` 0 | 8.1, 8.2 | cc:TODO |
+| 8.4 | **コンパニオン設定トグル「音声で回答」**: `apps/g2hermes/src/companion/settings.ts`（ピュア・`voiceAnswer:boolean` 既定 **false**・validate/serialize/parse）＋ `storage.ts` に settings 永続化（presets と別キー・bridge/localStorage フォールバック）＋ Companion に Toggle UI（even-toolkit `Toggle`）。状態 lift-up（App が settings 保持） [tdd:required] | `bun test` green（既定 OFF・往復直列化・storage 保存/復元・presets キーと非衝突）・`bun run build` 成功・`biome check` 0 | - | cc:TODO |
+| 8.5 | **クライアント送信に設定反映 + 再生配線**: ask 送信時 `settings.voiceAnswer===true` なら request に `tts:true`（false/未設定なら付けない）。`ANSWERED` 処理で 設定 ON かつ `audioUrl` 有 なら `new Audio(<BRIDGE_BASE>+audioUrl).play()`（play() reject は握り潰してログ・回答表示は阻害しない・404 は正常系）。`app.json` 不変（whitelist 追加なし） [tdd:required（純ロジック）/ play は device-io skip] | `bun test` green（ON→request に tts:true・OFF→tts 未付与・audioUrl 無し/設定 OFF で再生呼ばない の純ロジック）・再生実発火は device-io skip・`bun run build` 成功・`biome check` 0・`git diff apps/g2hermes/app.json` 空 | 8.3, 8.4 | cc:TODO |
+| 8.6 | **検証 + 配布**: `bun test` 全 green / `biome check` 0 / `bun run build` 成功。Bridge ローカル起動 + 実 Aivis（127.0.0.1:10101）で「設定ON→ask `tts:true`→WAV 生成→audioUrl→ブラウザ/シミュレーターで再生」手動 E2E。設定OFF が現行等価も確認。version bump（0.2.8→0.2.9）＋ **`.env` のある場所で build→`evenhub pack`（直叩き・build→pack 順）**＋ bundle 検証（実 BASE 値・version 0.2.9 を `rg`・ENV 未設定警告なし）。実機サイドロード＋音声鳴動はユーザー [tdd:skip:integration-e2e] | 3 コマンド green + 手動で audioUrl 再生 PASS + 設定OFF 等価確認 + `g2hermes-v0.2.9.ehpk` 生成 + bundle `rg` 検証 PASS。実機鳴動はユーザー | 8.3, 8.5 | cc:TODO |
+
+### Phase 8 スコープ外（YAGNI）
+
+- 話者/style 選択 UI（既定 `888753760` 固定）。MP3/ogg 変換（WAV で足る）。
+- 読み上げ UX の作り込み（停止制御・ページ同期・話速・full 回答の自然文化・表示と読み上げの分離）。
+- iOS 実機検証（iPhone 未所持・プローブ未判定）。Android 前提で実装。
+- Aivis 自動起動（`open -a`）は Optional（8.1/8.3 の graceful null 降格を required とし、auto-start は env `AIVIS_AUTO_START` 既定 false の任意機能）。
+
+### Phase 8 プロセス
+
+ブランチ `feat/g2hermes-voice-answer` → コード作業前に `andrej-karpathy-skills:karpathy-guidelines` invoke → Codex Review（`/codex:review` 正規ルート）→ PR → bot レビューループ（CodeRabbit / Copilot / CI green）→ squash merge。Bridge `.env`（`AIVIS_*` 等）は gitignore・実機検証で調整。プローブ用 `.ehpk` サイドロードと音声鳴動確認はユーザー。
 
 ---
 
