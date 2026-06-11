@@ -7,9 +7,9 @@
 
 ## 背景・目的
 
-Even G2 にはスピーカーが無く、音声はスマホのスピーカー（Even Hub の Flutter WebView 内 `new Audio()`）から出す。Phase 7 のプローブで **サーバ生成 MP3/WAV を `new Audio()` で再生する方式が Android 前面・背面（画面オフ）とも有効**と実機確認済み。本 spec は「Hermes の回答テキストをユーザー設定（YES/NO）に応じて音声でも返す」本実装の契約を固定する。
+Even G2 にはスピーカーが無く、音声はスマホのスピーカー（Even Hub の Flutter WebView 内 `new Audio()`）から出す。Phase 7 のプローブで **サーバ生成音声を `new Audio()` で再生する方式が Android 前面・背面（画面オフ）とも有効**と実機確認済み（本実装は WAV を配信する）。本 spec は「Hermes の回答テキストをユーザー設定（YES/NO）に応じて音声でも返す」本実装の契約を固定する。
 
-**本線 = 方式2（AivisSpeech・ローカル MP3/WAV）**。プローブ結論時点の想定（方式3=OpenAI TTS）から、Mac B に AivisSpeech を導入したため本線を方式2 へ更新した。音声は **G2 Bridge が AivisSpeech Engine を直接叩いて生成**する（Hermes Agent 自身の TTS 設定 `~/.hermes/config.yaml` とは分離した独立実装）。
+**本線 = 方式2（AivisSpeech・ローカル WAV をそのまま配信）**。プローブ結論時点の想定（方式3=OpenAI TTS）から、Mac B に AivisSpeech を導入したため本線を方式2 へ更新した。音声は **G2 Bridge が AivisSpeech Engine を直接叩いて生成**する（Hermes Agent 自身の TTS 設定 `~/.hermes/config.yaml` とは分離した独立実装）。
 
 ## Aivis（AivisSpeech Engine）連携契約（Mac B 実測・2026-06-11）
 

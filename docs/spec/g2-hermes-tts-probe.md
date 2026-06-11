@@ -65,7 +65,7 @@ Even G2 にはスピーカーが無く、音声は**スマホのスピーカー*
 - **iOS = 未判定**: iPhone 未所持。方式1の go/no-go と前面/背面差は iOS 実機が必要。必要になった時点で同 probe パッケージで再取得する。
 - **【2026-06-11 更新】本線は方式2（Aivis）へ確定**: Mac B に **AivisSpeech**（VOICEVOX 互換・`127.0.0.1:10101`・WAV 44100/mono/16bit・既定話者 `888753760`）を導入したため、本実装の本線を **方式2（ローカル AivisSpeech・WAV をそのまま配信）** に更新する（当初想定の方式3=OpenAI TTS から変更）。音声生成は **G2 Bridge が AivisSpeech Engine を直接叩く独立実装**（Hermes Agent 自身の TTS 設定とは分離）。本実装の product contract は **`docs/spec/g2-hermes-voice-answer.md`（Phase 8）** に固定し、タスクは `Plans.md` Phase 8 で管理する。
 - **次手（本実装の配線）**: 接続先 **Mac B（Hermes Agent / Bridge / AivisSpeech ホスト）に WAV 生成基盤が既に稼働**するため、MP3 生成バックエンドは不要。これで本実装の 2 大不確実性（① Android 背面含む再生可否＝プローブで解消 / ② 音声生成基盤の有無＝Aivis で解消）が両方とも潰れた。残りは配線のみ:
-  - Bridge: 回答に `audioUrl` を添える（または `/audio/<id>.mp3` で配信）。
+  - Bridge: 回答に `audioUrl` を添える（`/audio/<id>` で **WAV** 配信）。
   - クライアント: `ANSWERED` で `new Audio(audioUrl).play()`（プローブ実証の経路そのまま・自動再生 OK）。
-  - ネットワーク: MP3 を **Bridge と同一 origin から配れば whitelist は既存テキスト API と共通で済む見込み**。`new Audio()` の単純再生は **CORS も不要**（Web Audio で波形を読まない限り）。→ whitelist 追加 / CORS は最小〜不要の可能性。
+  - ネットワーク: 音声（WAV）を **Bridge と同一 origin から配れば whitelist は既存テキスト API と共通で済む見込み**。`new Audio()` の単純再生は **CORS も不要**（Web Audio で波形を読まない限り）。→ whitelist 追加 / CORS は最小〜不要の可能性。
 - プローブ（`VITE_TTS_PROBE` gate）は本実装まで **OFF 既定で温存**（通常配布はバイト等価のまま）。
