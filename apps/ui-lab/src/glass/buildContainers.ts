@@ -3,6 +3,7 @@ import type { DesignParams, SelectionStyle, Skeleton } from '../params/types'
 export const DISPLAY_W = 576
 export const DISPLAY_H = 288
 export const SELECTED_ROW_INDEX = 1
+const ROW_COUNT = 4
 
 export interface CardContainerConfig {
   containerID: number
@@ -196,7 +197,11 @@ function clampWithinDisplay(value: number, max: number) {
   return Math.min(max, Math.max(1, value))
 }
 
-function listRows(params: DesignParams): RowSpec[] {
+function normalizedSelectedIndex(selectedIndex: number) {
+  return ((selectedIndex % ROW_COUNT) + ROW_COUNT) % ROW_COUNT
+}
+
+function listRows(params: DesignParams, selectedIndex: number): RowSpec[] {
   const startY = params.showStatusBar ? 36 : 12
   const h = clampWithinDisplay(params.cardHeight, 52)
   return LABELS.map((label, index) => ({
@@ -207,12 +212,12 @@ function listRows(params: DesignParams): RowSpec[] {
     y: startY + index * (h + params.lineGap),
     w: DISPLAY_W - 36,
     h,
-    selected: index === SELECTED_ROW_INDEX,
+    selected: index === normalizedSelectedIndex(selectedIndex),
     card: false,
   }))
 }
 
-function cardRows(params: DesignParams): RowSpec[] {
+function cardRows(params: DesignParams, selectedIndex: number): RowSpec[] {
   const w = clampWithinDisplay(params.cardWidth, DISPLAY_W - 24)
   const h = clampWithinDisplay(params.cardHeight, 64)
   const x = Math.round((DISPLAY_W - w) / 2)
@@ -225,17 +230,18 @@ function cardRows(params: DesignParams): RowSpec[] {
     y: startY + index * (h + params.lineGap),
     w,
     h,
-    selected: index === SELECTED_ROW_INDEX,
+    selected: index === normalizedSelectedIndex(selectedIndex) % 3,
     card: true,
   }))
 }
 
-function splitRows(params: DesignParams): RowSpec[] {
+function splitRows(params: DesignParams, selectedIndex: number): RowSpec[] {
   const gap = 12
   const w = Math.min(260, Math.floor((DISPLAY_W - 36 - gap) / 2))
   const h = Math.min(params.cardHeight + 18, 96)
   const y1 = params.showStatusBar ? 42 : 16
   const y2 = y1 + h + params.lineGap
+  const selected = normalizedSelectedIndex(selectedIndex)
   return [
     {
       id: 4,
@@ -245,7 +251,7 @@ function splitRows(params: DesignParams): RowSpec[] {
       y: y1,
       w,
       h,
-      selected: false,
+      selected: selected === 0,
       card: true,
     },
     {
@@ -256,7 +262,7 @@ function splitRows(params: DesignParams): RowSpec[] {
       y: y1,
       w,
       h,
-      selected: true,
+      selected: selected === 1,
       card: true,
     },
     {
@@ -267,7 +273,7 @@ function splitRows(params: DesignParams): RowSpec[] {
       y: y2,
       w,
       h,
-      selected: false,
+      selected: selected === 2,
       card: true,
     },
     {
@@ -278,19 +284,31 @@ function splitRows(params: DesignParams): RowSpec[] {
       y: y2,
       w,
       h,
-      selected: false,
+      selected: selected === 3,
       card: true,
     },
   ]
 }
 
-function rowsForSkeleton(params: DesignParams, skeleton: Skeleton): RowSpec[] {
-  if (skeleton === 'list') return listRows(params)
-  if (skeleton === 'split') return splitRows(params)
-  return cardRows(params)
+function rowsForSkeleton(
+  params: DesignParams,
+  skeleton: Skeleton,
+  selectedIndex: number,
+): RowSpec[] {
+  if (skeleton === 'list') return listRows(params, selectedIndex)
+  if (skeleton === 'split') return splitRows(params, selectedIndex)
+  return cardRows(params, selectedIndex)
 }
 
-export function buildContainers(params: DesignParams): CardContainerConfig[] {
+export interface BuildContainerOptions {
+  selectedIndex?: number
+}
+
+export function buildContainers(
+  params: DesignParams,
+  options: BuildContainerOptions = {},
+): CardContainerConfig[] {
+  const selectedIndex = options.selectedIndex ?? SELECTED_ROW_INDEX
   const configs: CardContainerConfig[] = [overlay(params)]
   if (params.showStatusBar) configs.push(statusBar(params))
 
@@ -298,7 +316,9 @@ export function buildContainers(params: DesignParams): CardContainerConfig[] {
   if (sep.content) configs.push(sep)
 
   configs.push(
-    ...rowsForSkeleton(params, params.skeleton).map((r) => card(params, r)),
+    ...rowsForSkeleton(params, params.skeleton, selectedIndex).map((r) =>
+      card(params, r),
+    ),
   )
   if (params.modal) configs.push(modalCard(params))
 
