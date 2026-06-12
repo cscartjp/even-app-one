@@ -153,6 +153,38 @@ Hermes Agent API Server（`hermes gateway`）
 
 ---
 
+## Phase 9: UI Lab サンドボックス（apps/ui-lab・UI デザイン実時間試作）
+
+> **新規ワークストリーム**（`apps/ui-lab`。g2hermes / hisho は無改変）。
+> Spec delta: `docs/spec/ui-lab-sandbox.md` を新設。precedence: `ui-lab-sandbox.md` > 本 `Plans.md` Phase 9。
+> **目的**: グラス表示（コンテナ方式）の UI を **スマホ companion のコントロールパネルで実時間に変えながらグラスで見比べる**学習・試作アプリ。枠（borderWidth/Radius/Color）・余白（padding）・選択表現（反転/▶/塗り/太枠）・骨格（list/cards/split）・明るさ＋擬似モーダル（textColor/modal/modalDim）を振れる。気に入った数値は出力パネルから TS スニペットで実アプリへ移植。
+> **再利用**: `apps/hisho/src/glass/homeCards.ts`（raw SDK 角丸枠カード）/ `useHishoGlasses.ts`（raw SDK ドライバ）のパターンを流用（車輪の再発明なし）。
+> **公式プロパティレンジ**（sdk-reference・Phase6 既出）: `borderWidth 0–5` / `borderRadius 0–10` / `borderColor 0–15` / `paddingLength 0–32`。
+> **不変条件**: `buildContainers` が常に「`isEventCapture:1` ちょうど1個」「テキストコンテナ ≤ 8」を保証。プロパティ変更は `rebuildPageContainer`＝ちらつき → **約40msデバウンス**。
+> **Security**: ネットワーク無し・秘密情報無し・**権限不要**（`app.json` permissions: `[]`）。
+> **team_validation_mode**: `manual-pass`（ローカル UI のみ・auth/secret/network/billing/外部連携なし。Product/Architecture/Security/QA/Skeptic を単独評価。修正反映: 公式レンジ訂正・≤8コンテナ/単一eventCapture を不変条件化・rebuild デバウンス・scaffold 先行）。
+> **lint/format baseline**: 新規アプリのため未設置 → 9.1 で biome/tsc/vite を hisho に揃えて設置（実装タスクの前提）。
+
+| Task | 内容 | DoD | Depends | Status |
+|------|------|-----|---------|--------|
+| 9.0 | Spec delta（docs）: `docs/spec/ui-lab-sandbox.md` 新設（DesignParams モデル・公式レンジ・specimen=単一メニュー画面・selectionStyle 4種・modal dim 意味・出力パネル契約・不変条件・権限なし）[tdd:skip:docs] | sub-spec 作成・precedence 明記・公式レンジ固定 | - | cc:完了（2026-06-12・本計画作成と同時に作成） |
+| 9.1 | **scaffold + baseline**: `apps/ui-lab` を hisho と同一スタックで生成（app.json: package_id `com.frogman.uilab`・version 0.0.1・permissions `[]`、vite/tsc/biome/react-router/even-toolkit、`__APP_VERSION__` 注入、hello-world 描画）。everything-evenhub `quickstart`/`template` をベースに hisho 構成へ整合 [tdd:skip:scaffold] | `bun run build` 成功・`biome check` 0・`evenhub` で app.json valid・workspaces に認識される | - | cc:TODO |
+| 9.2 | **`params/types.ts`（DesignParams + 既定値・ピュア）+ `params/storage.ts`（最後の値を永続化・bridge/localStorage フォールバック）** [tdd:required] | `bun test` green（既定値が全フィールド公式レンジ内・serialize/parse 往復・storage 保存/復元）・`biome check` 0 | 9.1 | cc:TODO |
+| 9.3 | **中核 `glass/buildContainers.ts`（純粋関数 `params→CardContainerConfig[]`）**: 枠/余白/選択表現4種/skeleton(list\|cards\|split)/modal dim を表現 [tdd:required] | `bun test` green（枠ON/OFF→border値・selectionStyle 4種マッピング・modal ON で背景 dim＋前面明るカード・skeleton 3分岐・**不変条件: eventCapture が常に1個 / コンテナ ≤ 8**）・`biome check` 0 | 9.2 | cc:TODO |
+| 9.4 | **glass driver `glass/useUiLabGlasses.ts` + `AppGlasses.tsx`**: raw SDK で再描画（params 変更で `rebuildPageContainer`・**約40msデバウンス**）・上下で選択行移動・タップで modal トグル。hisho `useHishoGlasses` パターン流用 [tdd:skip:device-io] | `bun run build` 成功・シミュレーターで枠/選択4種/skeleton/modal/brightness の反映をスクショ確認（`test-with-simulator`/`simulator-automation`）・`biome check` 0 | 9.3 | cc:TODO |
+| 9.5 | **companion コントロールパネル**: `Companion.tsx`（Slider/Segmented/Toggle を DesignParams にライブ束縛）＋ `ExportPanel.tsx`（JSON ＋ 生成 container の TS スニペット・コピー）。状態 lift-up + storage [tdd:required（純ロジック）] | `bun test` green（コントロール変更→params 更新・出力スニペットが params と一致）・`bun run build` 成功・`biome check` 0 | 9.2, 9.3 | cc:TODO |
+| 9.6 | **検証 + パッケージング**: `bun test` 全 green / `biome check` 0 / `bun run build` 成功。シミュレーターで全ノブ（枠・余白・選択4種・skeleton・modal・brightness）反映を目視。`evenhub pack app.json dist -o ui-lab-v0.0.1.ehpk`（build→pack 順）。実機サイドロードはユーザー [tdd:skip:integration-e2e] | 3 コマンド green + シミュレーターで全ノブ反映 PASS + `ui-lab-v0.0.1.ehpk` 生成。実機はユーザー | 9.4, 9.5 | cc:TODO |
+
+### Phase 9 スコープ外（YAGNI / v2 以降）
+
+- プリセット保存・呼び出し / specimen（お手本画面）の複数化 / コンテナ個別エディタ / スマホ側の近似プレビュー（v1.5）/ 画像コンテナ / ストア公開。
+
+### Phase 9 プロセス
+
+ブランチ `feat/ui-lab-sandbox` → コード作業前に `andrej-karpathy-skills:karpathy-guidelines` invoke →（任意で Codex Review）→ PR → bot レビューループ → squash merge。`apps/ui-lab` 限定（g2hermes / hisho / even-toolkit 無改変）。
+
+---
+
 ## 制約
 
 - **Phase 2–4（G2 Hermes 作業）では `apps/hisho/` を改変しない**（読み取り・参照のみ）。**Phase 5–6 は Hisho ワークストリーム＝`apps/hisho/` が対象**。どの Phase でも `apps/hisho/preview/design-mock.html`（UI デザイン正本）は保護ファイルで無改変（spike はコピー `design-mock-card-spike.html` を使用・正本反映は別途承認）。
