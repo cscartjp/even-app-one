@@ -1238,7 +1238,7 @@ export const shops: readonly Shop[] = [
   {
     name: '焼きそばの想夫恋 東合川バイパス店',
     genre: 'お好み焼き',
-    area: '久留米市',
+    area: '久留米市 東合川',
     lat: 33.339,
     lon: 130.547,
     weekday: [r(11, 0, 15, 0), r(17, 0, 21, 0)],
