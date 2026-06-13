@@ -1,4 +1,5 @@
 import type { DesignParams, SelectionStyle, Skeleton } from '../params/types'
+import { appVersion } from '../version'
 
 export const DISPLAY_W = 576
 export const DISPLAY_H = 288
@@ -41,8 +42,7 @@ const LABELS = [
   'Modal preview',
   'Export target',
 ]
-const APP_VERSION =
-  typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0-dev'
+const APP_VERSION = appVersion()
 
 function border(params: DesignParams, enabled: boolean) {
   if (!enabled || params.borderWidth === 0) {

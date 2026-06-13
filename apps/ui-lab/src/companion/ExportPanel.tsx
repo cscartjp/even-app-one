@@ -17,7 +17,13 @@ export function ExportPanel({ params }: ExportPanelProps) {
         <Button
           size="sm"
           variant="highlight"
-          onClick={() => void navigator.clipboard?.writeText(snippet)}
+          onClick={async () => {
+            try {
+              await navigator.clipboard?.writeText(snippet)
+            } catch (err) {
+              console.error('Failed to copy snippet:', err)
+            }
+          }}
         >
           Copy TS
         </Button>

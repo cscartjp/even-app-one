@@ -20,6 +20,7 @@ import {
   SEPARATORS,
   SKELETONS,
 } from '../params/types'
+import { appVersion } from '../version'
 import { ExportPanel } from './ExportPanel'
 import {
   type BooleanParamKey,
@@ -72,7 +73,7 @@ export function Companion({ params, onParamsChange }: CompanionProps) {
       <div className="space-y-4 px-3 pt-4 pb-8">
         <ScreenHeader
           title="UI Lab"
-          subtitle={`G2 container sandbox v${__APP_VERSION__}`}
+          subtitle={`G2 container sandbox v${appVersion()}`}
         />
 
         <SectionHeader title="Frame" />
