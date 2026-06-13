@@ -1,0 +1,169 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+.lab {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.badge.on {
+  background: #1f6f43;
+  color: #d7ffe6;
+}
+.badge.off {
+  background: #6e2b2b;
+  color: #ffd7d7;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+button:active {
+  transform: scale(0.98);
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.primary {
+  flex: 1;
+  font-weight: 700;
+  background: #1f6feb;
+  border-color: #1f6feb;
+}
+.primary.stop {
+  background: #b62324;
+  border-color: #b62324;
+}
+
+.pace {
+  display: flex;
+  gap: 6px;
+}
+.pace button.sel {
+  background: #1f6feb;
+  border-color: #1f6feb;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.msg {
+  margin: 0;
+  font-size: 13px;
+  color: #9ecbff;
+}
+
+.readout,
+.stats,
+.log {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+.row .k {
+  color: #8b949e;
+  font-size: 13px;
+}
+.row .v {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+.row.big {
+  margin-top: 6px;
+  border-top: 1px solid #30363d;
+  padding-top: 10px;
+}
+.row.big .v {
+  font-size: 22px;
+  font-weight: 700;
+  color: #7ee787;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.stats div {
+  display: flex;
+  justify-content: space-between;
+}
+.stats .k {
+  color: #8b949e;
+  font-size: 13px;
+}
+.stats .v {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.log h2 {
+  font-size: 13px;
+  color: #8b949e;
+  margin: 0 0 8px;
+}
+.log pre {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: #adbac7;
+}
+
+footer p {
+  font-size: 12px;
+  color: #6e7681;
+  line-height: 1.6;
+}

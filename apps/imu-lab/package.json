@@ -1,0 +1,37 @@
+{
+  "name": "imu-lab",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite --port 5175 --host",
+    "test": "bun test",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write ."
+  },
+  "dependencies": {
+    "@evenrealities/even_hub_sdk": "^0.0.10",
+    "even-toolkit": "^1.7.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router": "^7.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
+    "@evenrealities/evenhub-cli": "^0.1.13",
+    "@types/bun": "^1.3.14",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.2",
+    "typescript": "~5.9.0",
+    "vite": "^8.0.0"
+  }
+}

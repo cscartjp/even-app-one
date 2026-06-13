@@ -64,6 +64,28 @@
         "vite": "^8.0.0",
       },
     },
+    "apps/imu-lab": {
+      "name": "imu-lab",
+      "version": "0.0.1",
+      "dependencies": {
+        "@evenrealities/even_hub_sdk": "^0.0.10",
+        "even-toolkit": "^1.7.2",
+        "react": "^19.0.0",
+        "react-dom": "^19.0.0",
+        "react-router": "^7.0.0",
+      },
+      "devDependencies": {
+        "@biomejs/biome": "^2.4.16",
+        "@evenrealities/evenhub-cli": "^0.1.13",
+        "@types/bun": "^1.3.14",
+        "@types/node": "^22.0.0",
+        "@types/react": "^19.0.0",
+        "@types/react-dom": "^19.0.0",
+        "@vitejs/plugin-react": "^6.0.2",
+        "typescript": "~5.9.0",
+        "vite": "^8.0.0",
+      },
+    },
     "apps/ui-lab": {
       "name": "ui-lab",
       "version": "0.0.1",
@@ -426,6 +448,8 @@
     "iconv-lite": ["iconv-lite@0.7.2", "", { "dependencies": { "safer-buffer": ">= 2.1.2 < 3.0.0" } }, "sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw=="],
 
     "immer": ["immer@10.2.0", "", {}, "sha512-d/+XTN3zfODyjr89gM3mPq1WNX2B8pYsu7eORitdwyA2sBubnTl3laYlBk4sXY5FUa5qTZGBDPJICVbvqzjlbw=="],
+
+    "imu-lab": ["imu-lab@workspace:apps/imu-lab"],
 
     "inquirer": ["inquirer@13.4.3", "", { "dependencies": { "@inquirer/ansi": "^2.0.5", "@inquirer/core": "^11.1.10", "@inquirer/prompts": "^8.4.3", "@inquirer/type": "^4.0.5", "mute-stream": "^3.0.0", "run-async": "^4.0.6", "rxjs": "^7.8.2" }, "peerDependencies": { "@types/node": ">=18" }, "optionalPeers": ["@types/node"] }, "sha512-EPd3IqieHSavSOXh+LZhrIkdQcOELWeRblLT6kslQr+cF9XTh/HxZdSt1YkHH1iq4dvqBnV42uwg2YlorgOy6g=="],
 
