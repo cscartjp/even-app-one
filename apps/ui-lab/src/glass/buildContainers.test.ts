@@ -39,30 +39,27 @@ describe('buildContainers', () => {
     expect(off?.borderColor).toBe(0)
   })
 
-  test('selectionStyle maps all four selected-row appearances', () => {
+  test('selectionStyle maps all three selected-row appearances', () => {
     expect(selected(params({ selectionStyle: 'cursor' }))?.content).toContain(
       '▶',
     )
-    expect(selected(params({ selectionStyle: 'inverted' }))?.content).toContain(
-      '> SELECTED ROW <',
+    expect(selected(params({ selectionStyle: 'filled' }))?.content).toContain(
+      '█',
     )
-    expect(
-      selected(params({ selectionStyle: 'filled' }))?.backgroundColor,
-    ).toBe(DEFAULT_DESIGN_PARAMS.textColor)
     expect(
       selected(params({ selectionStyle: 'thickBorder' }))?.borderWidth,
     ).toBeGreaterThan(DEFAULT_DESIGN_PARAMS.borderWidth)
   })
 
-  test('modal dims background containers and adds one bright foreground card', () => {
-    const configs = buildContainers(params({ modal: true, modalDim: 3 }))
+  test('modal dims background borders and adds one bright foreground card', () => {
+    const configs = buildContainers(params({ modal: true }))
     expect(configs.some((c) => c.containerName === 'modal')).toBe(true)
-    expect(
-      configs.find((c) => c.containerName === 'overlay')?.backgroundColor,
-    ).toBe(3)
     const modal = configs.find((c) => c.containerName === 'modal')
-    expect(modal?.borderColor).toBe(DEFAULT_DESIGN_PARAMS.textColor)
-    expect(modal?.backgroundColor).toBe(0)
+    expect(modal?.borderColor).toBe(15)
+    expect(modal?.borderWidth).toBeGreaterThanOrEqual(3)
+    expect(configs.find((c) => c.containerName === 'card-1')?.borderColor).toBe(
+      4,
+    )
   })
 
   test('skeleton branches produce list, cards, and split layouts', () => {

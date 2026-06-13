@@ -9,7 +9,6 @@ import {
   PADDING_RANGE,
   parseDesignParams,
   serializeDesignParams,
-  TONE_RANGE,
 } from './types'
 
 describe('DesignParams defaults', () => {
@@ -27,10 +26,6 @@ describe('DesignParams defaults', () => {
     expect(p.cardHeight).toBeLessThanOrEqual(DISPLAY_RANGE.height.max)
     expect(p.lineGap).toBeGreaterThanOrEqual(LINE_GAP_RANGE.min)
     expect(p.lineGap).toBeLessThanOrEqual(LINE_GAP_RANGE.max)
-    expect(p.textColor).toBeGreaterThanOrEqual(TONE_RANGE.min)
-    expect(p.textColor).toBeLessThanOrEqual(TONE_RANGE.max)
-    expect(p.modalDim).toBeGreaterThanOrEqual(TONE_RANGE.min)
-    expect(p.modalDim).toBeLessThanOrEqual(TONE_RANGE.max)
   })
 
   test('serialize/parse round-trips a full params object', () => {
@@ -44,9 +39,7 @@ describe('DesignParams defaults', () => {
       showStatusBar: false,
       separator: 'dots' as const,
       skeleton: 'split' as const,
-      textColor: 9,
       modal: true,
-      modalDim: 3,
     }
     expect(parseDesignParams(serializeDesignParams(params))).toEqual(params)
   })

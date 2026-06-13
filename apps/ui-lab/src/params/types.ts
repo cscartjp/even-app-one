@@ -7,14 +7,10 @@ export const DISPLAY_RANGE = {
   height: { min: 32, max: 288 },
 } as const
 export const LINE_GAP_RANGE = { min: 0, max: 24 } as const
-export const TONE_RANGE = { min: 0, max: 15 } as const
 
-export const SELECTION_STYLES = [
-  'inverted',
-  'cursor',
-  'filled',
-  'thickBorder',
-] as const
+// G2 の TextContainerProperty が持つ色は borderColor のみ。テキスト色/背景色は
+// SDK に無いため、明るさ/背景 dim の数値ノブは持たない（modal/選択は枠・文字で表現）。
+export const SELECTION_STYLES = ['cursor', 'filled', 'thickBorder'] as const
 export type SelectionStyle = (typeof SELECTION_STYLES)[number]
 
 export const SEPARATORS = ['none', 'line', 'dots'] as const
@@ -35,9 +31,7 @@ export interface DesignParams {
   showStatusBar: boolean
   separator: SeparatorStyle
   skeleton: Skeleton
-  textColor: number
   modal: boolean
-  modalDim: number
 }
 
 export const DEFAULT_DESIGN_PARAMS: DesignParams = {
@@ -52,9 +46,7 @@ export const DEFAULT_DESIGN_PARAMS: DesignParams = {
   showStatusBar: true,
   separator: 'line',
   skeleton: 'cards',
-  textColor: 15,
   modal: false,
-  modalDim: 4,
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -133,19 +125,7 @@ export function normalizeDesignParams(value: unknown): DesignParams {
     showStatusBar: pickBool(input.showStatusBar, d.showStatusBar),
     separator: pickEnum(input.separator, SEPARATORS, d.separator),
     skeleton: pickEnum(input.skeleton, SKELETONS, d.skeleton),
-    textColor: clampInt(
-      input.textColor,
-      TONE_RANGE.min,
-      TONE_RANGE.max,
-      d.textColor,
-    ),
     modal: pickBool(input.modal, d.modal),
-    modalDim: clampInt(
-      input.modalDim,
-      TONE_RANGE.min,
-      TONE_RANGE.max,
-      d.modalDim,
-    ),
   }
 }
 

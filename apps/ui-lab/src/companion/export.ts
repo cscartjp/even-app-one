@@ -8,13 +8,7 @@ export function designParamsJson(params: DesignParams): string {
 
 export function containerSnippet(params: DesignParams): string {
   const normalized = normalizeDesignParams(params)
-  const containers = buildContainers(normalized).map(
-    ({ textColor, backgroundColor, ...sdkSupported }) => ({
-      ...sdkSupported,
-      textColor,
-      backgroundColor,
-    }),
-  )
+  const containers = buildContainers(normalized)
   return `import type { DesignParams } from './params/types'
 import { buildContainers } from './glass/buildContainers'
 

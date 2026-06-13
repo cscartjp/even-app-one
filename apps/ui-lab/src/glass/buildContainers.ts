@@ -4,6 +4,9 @@ export const DISPLAY_W = 576
 export const DISPLAY_H = 288
 export const SELECTED_ROW_INDEX = 1
 const ROW_COUNT = 4
+/** 擬似モーダル: 前面カードは最も明るい枠、背景カードは暗い枠で奥行きを出す（色は borderColor のみ実機反映） */
+const MODAL_FRONT_BORDER = 15
+const MODAL_DIM_BORDER = 4
 
 export interface CardContainerConfig {
   containerID: number
@@ -18,8 +21,6 @@ export interface CardContainerConfig {
   paddingLength: number
   content: string
   isEventCapture: 0 | 1
-  textColor: number
-  backgroundColor: number
 }
 
 interface RowSpec {
@@ -49,13 +50,10 @@ function border(params: DesignParams, enabled: boolean) {
   }
   return {
     borderWidth: params.borderWidth,
-    borderColor: params.borderColor,
+    // modal 時は背景カードの枠を暗く落として奥に退かせる（擬似モーダルの深度表現）
+    borderColor: params.modal ? MODAL_DIM_BORDER : params.borderColor,
     borderRadius: params.borderRadius,
   }
-}
-
-function toneLabel(value: number) {
-  return value >= 12 ? 'bright' : value >= 7 ? 'mid' : 'dim'
 }
 
 function separatorContent(params: DesignParams) {
@@ -67,7 +65,6 @@ function separatorContent(params: DesignParams) {
 function rowContent(label: string, selected: boolean, style: SelectionStyle) {
   if (!selected) return `  ${label}`
   if (style === 'cursor') return `▶ ${label}`
-  if (style === 'inverted') return `> ${label.toUpperCase()} <`
   if (style === 'filled') return `█ ${label} █`
   return `▣ ${label}`
 }
@@ -83,14 +80,7 @@ function rowBorder(params: DesignParams, spec: RowSpec) {
   return border(params, spec.card)
 }
 
-function rowBackground(params: DesignParams, selected: boolean) {
-  if (!selected) return 0
-  if (params.selectionStyle === 'filled') return params.textColor
-  if (params.selectionStyle === 'inverted') return params.textColor
-  return 0
-}
-
-function overlay(params: DesignParams): CardContainerConfig {
+function overlay(): CardContainerConfig {
   return {
     containerID: 1,
     containerName: 'overlay',
@@ -104,8 +94,6 @@ function overlay(params: DesignParams): CardContainerConfig {
     paddingLength: 0,
     content: '',
     isEventCapture: 1,
-    textColor: params.textColor,
-    backgroundColor: params.modal ? params.modalDim : 0,
   }
 }
 
@@ -121,10 +109,8 @@ function statusBar(params: DesignParams): CardContainerConfig {
     borderColor: 0,
     borderRadius: 0,
     paddingLength: 0,
-    content: `UI LAB v${APP_VERSION}  ${params.skeleton}  ${toneLabel(params.textColor)}`,
+    content: `UI LAB v${APP_VERSION}  ${params.skeleton}  ${params.selectionStyle}${params.modal ? '  modal' : ''}`,
     isEventCapture: 0,
-    textColor: params.textColor,
-    backgroundColor: params.modal ? params.modalDim : 0,
   }
 }
 
@@ -146,8 +132,6 @@ function separator(
     paddingLength: 0,
     content: separatorContent(params),
     isEventCapture: 0,
-    textColor: params.textColor,
-    backgroundColor: params.modal ? params.modalDim : 0,
   }
 }
 
@@ -164,13 +148,6 @@ function card(params: DesignParams, spec: RowSpec): CardContainerConfig {
     paddingLength: spec.card ? params.padding : 0,
     content: rowContent(spec.label, spec.selected, params.selectionStyle),
     isEventCapture: 0,
-    textColor:
-      spec.selected && params.selectionStyle === 'inverted'
-        ? 0
-        : params.textColor,
-    backgroundColor: params.modal
-      ? params.modalDim
-      : rowBackground(params, spec.selected),
   }
 }
 
@@ -182,14 +159,14 @@ function modalCard(params: DesignParams): CardContainerConfig {
     yPosition: 78,
     width: 404,
     height: 118,
-    borderWidth: Math.max(params.borderWidth, 2),
-    borderColor: params.textColor,
+    // 前面カードは最も明るい太枠で「手前」を表現（背景カードは border() で暗く落ちる）
+    borderWidth: Math.max(params.borderWidth, 3),
+    borderColor: MODAL_FRONT_BORDER,
     borderRadius: params.borderRadius,
     paddingLength: Math.max(params.padding, 8),
-    content: 'Modal preview\nTap toggles modal\nBackground dimmed',
+    content:
+      'Modal preview\nTap toggles modal\nBright frame = front, bg dimmed',
     isEventCapture: 0,
-    textColor: params.textColor,
-    backgroundColor: 0,
   }
 }
 
@@ -309,7 +286,7 @@ export function buildContainers(
   options: BuildContainerOptions = {},
 ): CardContainerConfig[] {
   const selectedIndex = options.selectedIndex ?? SELECTED_ROW_INDEX
-  const configs: CardContainerConfig[] = [overlay(params)]
+  const configs: CardContainerConfig[] = [overlay()]
   if (params.showStatusBar) configs.push(statusBar(params))
 
   const sep = separator(params, 3, params.showStatusBar ? 28 : 2)

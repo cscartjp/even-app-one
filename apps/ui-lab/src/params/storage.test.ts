@@ -70,7 +70,7 @@ describe('createDesignParamsStore', () => {
       getBridge: async () => null,
       localStorage: ls,
     })
-    const params = { ...DEFAULT_DESIGN_PARAMS, textColor: 7 }
+    const params = { ...DEFAULT_DESIGN_PARAMS, borderColor: 7 }
     await fallbackStore.save(params)
 
     const { bridge, store: bridgeMem } = memoryBridge()

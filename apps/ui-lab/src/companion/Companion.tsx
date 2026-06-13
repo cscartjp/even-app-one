@@ -19,7 +19,6 @@ import {
   SELECTION_STYLES,
   SEPARATORS,
   SKELETONS,
-  TONE_RANGE,
 } from '../params/types'
 import { ExportPanel } from './ExportPanel'
 import {
@@ -52,8 +51,6 @@ const SLIDERS: SliderSpec[] = [
   { key: 'cardWidth', label: 'Card width', ...DISPLAY_RANGE.width },
   { key: 'cardHeight', label: 'Card height', ...DISPLAY_RANGE.height },
   { key: 'lineGap', label: 'Line gap', ...LINE_GAP_RANGE },
-  { key: 'textColor', label: 'Text brightness', ...TONE_RANGE },
-  { key: 'modalDim', label: 'Modal dim', ...TONE_RANGE },
 ]
 
 const choiceOptions = (values: readonly string[]) =>
