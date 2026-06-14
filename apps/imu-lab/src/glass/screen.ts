@@ -50,8 +50,11 @@ export const labScreen: GlassScreen<LabState, Ctx> = {
       ctx.cyclePace(action.direction === 'down' ? 'down' : 'up')
       return nav
     }
-    // GO_BACK（ダブルタップ）
-    ctx.exit()
+    if (action.type === 'GO_BACK') {
+      // ダブルタップ: 終了
+      ctx.exit()
+    }
+    // 想定外の action は無視（ダブルタップ以外で誤終了しないようにする）。
     return nav
   },
 }

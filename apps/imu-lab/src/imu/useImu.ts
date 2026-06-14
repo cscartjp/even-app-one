@@ -56,33 +56,44 @@ export function useImu(dispatch: Dispatch<Action>): ImuControls {
     let disposed = false
     let unsubscribe: (() => void) | null = null
 
-    void Promise.race([
-      waitForEvenAppBridge(),
-      new Promise<null>((resolve) =>
-        setTimeout(() => resolve(null), BRIDGE_WAIT_MS),
-      ),
-    ]).then(async (bridge) => {
-      if (disposed || !bridge) return
-      bridgeRef.current = bridge
-      dispatch({ type: 'CONNECTED', connected: true })
-      dispatch({ type: 'BATTERY', level: await readBattery(bridge) })
+    void (async () => {
+      try {
+        const bridge = await Promise.race([
+          waitForEvenAppBridge(),
+          new Promise<null>((resolve) =>
+            setTimeout(() => resolve(null), BRIDGE_WAIT_MS),
+          ),
+        ])
+        if (disposed || !bridge) return
 
-      unsubscribe = bridge.onEvenHubEvent((event) => {
-        if (event.sysEvent?.eventType !== OsEventTypeList.IMU_DATA_REPORT)
-          return
-        const d = event.sysEvent.imuData
-        if (!d) return
-        dispatch({
-          type: 'SAMPLE',
-          sample: {
-            t: performance.now(),
-            x: d.x ?? 0,
-            y: d.y ?? 0,
-            z: d.z ?? 0,
-          },
+        bridgeRef.current = bridge
+        dispatch({ type: 'CONNECTED', connected: true })
+
+        const battery = await readBattery(bridge)
+        // readBattery 待ちの間にアンマウントされていたら購読しない（リーク防止）。
+        if (disposed) return
+        dispatch({ type: 'BATTERY', level: battery })
+
+        unsubscribe = bridge.onEvenHubEvent((event) => {
+          if (disposed) return
+          if (event.sysEvent?.eventType !== OsEventTypeList.IMU_DATA_REPORT)
+            return
+          const d = event.sysEvent.imuData
+          if (!d) return
+          dispatch({
+            type: 'SAMPLE',
+            sample: {
+              t: performance.now(),
+              x: d.x ?? 0,
+              y: d.y ?? 0,
+              z: d.z ?? 0,
+            },
+          })
         })
-      })
-    })
+      } catch {
+        // ブリッジ非対応/接続失敗は no-op（connected=false のまま）。
+      }
+    })()
 
     return () => {
       disposed = true
@@ -99,6 +110,9 @@ export function useImu(dispatch: Dispatch<Action>): ImuControls {
       measuringRef.current = true
       void (async () => {
         const battery = bridge ? await readBattery(bridge) : null
+        // readBattery 待ちの間に stop() されていたら開始要求を捨てる
+        // （遅れて imuControl(true) が走り計測が再開する競合を防ぐ）。
+        if (!measuringRef.current) return
         dispatch({ type: 'START', pace, battery })
         await bridge?.imuControl(true, PACE_ENUM[pace]).catch(() => {})
       })()
