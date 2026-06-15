@@ -42,8 +42,17 @@ describe('DesignParams defaults', () => {
       separator: 'dots' as const,
       skeleton: 'split' as const,
       modal: true,
+      modalStyle: 'image' as const,
     }
     expect(parseDesignParams(serializeDesignParams(params))).toEqual(params)
+  })
+
+  test('modalStyle defaults to border and falls back on invalid input', () => {
+    expect(DEFAULT_DESIGN_PARAMS.modalStyle).toBe('border')
+    const valid = parseDesignParams(JSON.stringify({ modalStyle: 'image' }))
+    expect(valid.modalStyle).toBe('image')
+    const invalid = parseDesignParams(JSON.stringify({ modalStyle: 'nope' }))
+    expect(invalid.modalStyle).toBe('border')
   })
 
   test('invalid or out-of-range values are normalized', () => {

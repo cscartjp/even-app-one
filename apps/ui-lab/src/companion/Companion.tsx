@@ -15,6 +15,7 @@ import {
   type DesignParams,
   DISPLAY_RANGE,
   LINE_GAP_RANGE,
+  MODAL_STYLES,
   PADDING_RANGE,
   SELECTION_STYLES,
   SEPARATORS,
@@ -145,6 +146,23 @@ export function Companion({ params, onParamsChange }: CompanionProps) {
                 checked={params.modal}
                 onChange={(value) => setBoolean('modal', value)}
               />
+            </div>
+            <div className="space-y-2">
+              <span className="text-[13px] text-text-dim">Modal style</span>
+              <SegmentedControl
+                size="small"
+                value={params.modalStyle}
+                options={choiceOptions(MODAL_STYLES)}
+                onValueChange={(value) =>
+                  setChoice('modalStyle', value as ChoiceParamValue)
+                }
+              />
+              <p className="text-[12px] text-text-dim leading-snug">
+                image = 「不透明モーダルは作れない」検証デモ。G2
+                は透過加算ディスプレイのため画像のベタ塗りでも背後を遮蔽できず不透明化は不可。常時こまかくちらつく。本物のモーダルは
+                OS の終了確認（shutDownPageContainer）のみで任意 UI 不可。border
+                = 枠だけで無ちらつき だが背後が透ける（実用上の擬似モーダル）。
+              </p>
             </div>
           </div>
         </SettingsGroup>

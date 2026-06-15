@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { DEFAULT_DESIGN_PARAMS, type DesignParams } from '../params/types'
-import { buildContainers } from './buildContainers'
+import {
+  buildContainers,
+  buildModalImageContainer,
+  MODAL_IMAGE_CONTAINER_ID,
+} from './buildContainers'
 
 function params(overrides: Partial<DesignParams> = {}): DesignParams {
   return { ...DEFAULT_DESIGN_PARAMS, ...overrides }
@@ -51,7 +55,7 @@ describe('buildContainers', () => {
     ).toBeGreaterThan(DEFAULT_DESIGN_PARAMS.borderWidth)
   })
 
-  test('modal dims background borders and adds one bright foreground card', () => {
+  test('border modal adds one bright foreground card (default modalStyle)', () => {
     const configs = buildContainers(params({ modal: true }))
     expect(configs.some((c) => c.containerName === 'modal')).toBe(true)
     const modal = configs.find((c) => c.containerName === 'modal')
@@ -60,6 +64,26 @@ describe('buildContainers', () => {
     expect(configs.find((c) => c.containerName === 'card-1')?.borderColor).toBe(
       4,
     )
+  })
+
+  test('image modal omits the text modal card; image container is separate', () => {
+    const configs = buildContainers(
+      params({ modal: true, modalStyle: 'image' }),
+    )
+    // テキストモーダルは置かない（画像コンテナが前面を覆う）
+    expect(configs.some((c) => c.containerName === 'modal')).toBe(false)
+    // 不変条件は維持: event-capture ちょうど1個・テキスト ≤8
+    expect(configs.filter((c) => c.isEventCapture === 1)).toHaveLength(1)
+    expect(configs.length).toBeLessThanOrEqual(8)
+
+    const img = buildModalImageContainer()
+    expect(img.containerID).toBe(MODAL_IMAGE_CONTAINER_ID)
+    // 画像コンテナ ID はテキストコンテナ ID（≤8）と衝突しない
+    expect(configs.some((c) => c.containerID === img.containerID)).toBe(false)
+    expect(img.width).toBeLessThanOrEqual(200)
+    expect(img.height).toBeLessThanOrEqual(100)
+    expect(img.xPosition).toBeGreaterThanOrEqual(0)
+    expect(img.yPosition).toBeGreaterThanOrEqual(0)
   })
 
   test('skeleton branches produce list, cards, and split layouts', () => {

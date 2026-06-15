@@ -1,5 +1,6 @@
 import type {
   DesignParams,
+  ModalStyle,
   SelectionStyle,
   SeparatorStyle,
   Skeleton,
@@ -14,8 +15,16 @@ export type BooleanParamKey = {
   [K in keyof DesignParams]: DesignParams[K] extends boolean ? K : never
 }[keyof DesignParams]
 
-export type ChoiceParamKey = 'selectionStyle' | 'separator' | 'skeleton'
-export type ChoiceParamValue = SelectionStyle | SeparatorStyle | Skeleton
+export type ChoiceParamKey =
+  | 'selectionStyle'
+  | 'separator'
+  | 'skeleton'
+  | 'modalStyle'
+export type ChoiceParamValue =
+  | SelectionStyle
+  | SeparatorStyle
+  | Skeleton
+  | ModalStyle
 
 export function updateNumericParam(
   params: DesignParams,
