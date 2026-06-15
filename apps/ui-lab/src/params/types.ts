@@ -19,6 +19,14 @@ export type SeparatorStyle = (typeof SEPARATORS)[number]
 export const SKELETONS = ['list', 'cards', 'split'] as const
 export type Skeleton = (typeof SKELETONS)[number]
 
+// モーダルの描き方: border=枠だけ（無ちらつき・背後が透けて見える）/ image=1枚画像
+// （背景塗り＋枠＋ラベルを焼き込む）。image は「不透明モーダルは作れない」検証デモ:
+// G2 は透過加算ディスプレイで画像が z 順で前面でも背後を遮蔽できず不透明化は成立しない
+// （実機検証 2026-06-15）。加えて画像コンテナは常時ちらつく（ファーム仕様・根治不可）。
+// 詳細は docs/spec/ui-lab-sandbox.md「画像モーダル＝negative result」を参照。
+export const MODAL_STYLES = ['border', 'image'] as const
+export type ModalStyle = (typeof MODAL_STYLES)[number]
+
 export interface DesignParams {
   borderWidth: number
   borderRadius: number
@@ -32,6 +40,7 @@ export interface DesignParams {
   separator: SeparatorStyle
   skeleton: Skeleton
   modal: boolean
+  modalStyle: ModalStyle
 }
 
 export const DEFAULT_DESIGN_PARAMS: DesignParams = {
@@ -47,6 +56,7 @@ export const DEFAULT_DESIGN_PARAMS: DesignParams = {
   separator: 'line',
   skeleton: 'cards',
   modal: false,
+  modalStyle: 'border',
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -126,6 +136,7 @@ export function normalizeDesignParams(value: unknown): DesignParams {
     separator: pickEnum(input.separator, SEPARATORS, d.separator),
     skeleton: pickEnum(input.skeleton, SKELETONS, d.skeleton),
     modal: pickBool(input.modal, d.modal),
+    modalStyle: pickEnum(input.modalStyle, MODAL_STYLES, d.modalStyle),
   }
 }
 

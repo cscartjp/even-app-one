@@ -1,5 +1,6 @@
 import type { DesignParams, SelectionStyle, Skeleton } from '../params/types'
 import { appVersion } from '../version'
+import { MODAL_IMAGE_H, MODAL_IMAGE_W } from './buildModalImage'
 
 export const DISPLAY_W = 576
 export const DISPLAY_H = 288
@@ -23,6 +24,19 @@ export interface CardContainerConfig {
   content: string
   isEventCapture: 0 | 1
 }
+
+/** 画像方式モーダルのプレースホルダ画像コンテナ（生成後 updateImageRawData で塗る）。 */
+export interface ImageContainerConfig {
+  containerID: number
+  containerName: string
+  xPosition: number
+  yPosition: number
+  width: number
+  height: number
+}
+
+export const MODAL_IMAGE_CONTAINER_ID = 9
+export const MODAL_IMAGE_CONTAINER_NAME = 'modalImg'
 
 interface RowSpec {
   id: number
@@ -170,6 +184,22 @@ function modalCard(params: DesignParams): CardContainerConfig {
   }
 }
 
+/**
+ * 画像方式モーダルの画像コンテナを生成（中央配置・生成画像と同寸）。
+ * z 順は固定で画像が前面に来るが、G2 は透過加算ディスプレイなので背後は透け、不透明化は
+ * 成立しない（「不透明モーダルは作れない」検証デモ・docs/spec/ui-lab-sandbox.md 参照）。
+ */
+export function buildModalImageContainer(): ImageContainerConfig {
+  return {
+    containerID: MODAL_IMAGE_CONTAINER_ID,
+    containerName: MODAL_IMAGE_CONTAINER_NAME,
+    xPosition: Math.round((DISPLAY_W - MODAL_IMAGE_W) / 2),
+    yPosition: Math.round((DISPLAY_H - MODAL_IMAGE_H) / 2),
+    width: MODAL_IMAGE_W,
+    height: MODAL_IMAGE_H,
+  }
+}
+
 function clampWithinDisplay(value: number, max: number) {
   return Math.min(max, Math.max(1, value))
 }
@@ -297,7 +327,12 @@ export function buildContainers(
       card(params, r),
     ),
   )
-  if (params.modal) configs.push(modalCard(params))
+  // border 方式は前面に明るい枠カード（テキスト）を重ねる。image 方式はテキスト
+  // モーダルを置かず、画像コンテナ（buildModalImageContainer）を前面に置く（加算光なので
+  // 背後は透ける＝不透明化は不可・検証デモ）。
+  if (params.modal && params.modalStyle === 'border') {
+    configs.push(modalCard(params))
+  }
 
   return configs.slice(0, 8)
 }

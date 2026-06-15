@@ -1,4 +1,6 @@
 import {
+  ImageContainerProperty,
+  ImageRawDataUpdate,
   RebuildPageContainer,
   TextContainerProperty,
 } from '@evenrealities/even_hub_sdk'
@@ -10,13 +12,23 @@ import { bindKeyboard } from 'even-toolkit/keyboard'
 import type { GlassAction } from 'even-toolkit/types'
 import { useCallback, useEffect, useRef } from 'react'
 import type { DesignParams } from '../params/types'
-import { buildContainers, type CardContainerConfig } from './buildContainers'
+import {
+  buildContainers,
+  buildModalImageContainer,
+  type CardContainerConfig,
+  type ImageContainerConfig,
+} from './buildContainers'
+import { buildModalImage } from './buildModalImage'
+import { encodeModalPng } from './encodeModalPng'
 
 const DEBOUNCE_MS = 40
 
-function rawPage(configs: CardContainerConfig[]): RebuildPageContainer {
+function rawPage(
+  configs: CardContainerConfig[],
+  imageConfig: ImageContainerConfig | null,
+): RebuildPageContainer {
   return new RebuildPageContainer({
-    containerTotalNum: configs.length,
+    containerTotalNum: configs.length + (imageConfig ? 1 : 0),
     textObject: configs.map(
       (c) =>
         new TextContainerProperty({
@@ -34,6 +46,18 @@ function rawPage(configs: CardContainerConfig[]): RebuildPageContainer {
           isEventCapture: c.isEventCapture,
         }),
     ),
+    imageObject: imageConfig
+      ? [
+          new ImageContainerProperty({
+            containerID: imageConfig.containerID,
+            containerName: imageConfig.containerName,
+            xPosition: imageConfig.xPosition,
+            yPosition: imageConfig.yPosition,
+            width: imageConfig.width,
+            height: imageConfig.height,
+          }),
+        ]
+      : [],
   })
 }
 
@@ -63,11 +87,29 @@ export function useUiLabGlasses(config: UseUiLabGlassesConfig): void {
     busyRef.current = true
     pendingRef.current = false
     try {
-      const configs = buildContainers(configRef.current.params, {
+      const params = configRef.current.params
+      const configs = buildContainers(params, {
         selectedIndex: selectedIndexRef.current,
       })
-      await hub.rawBridge.rebuildPageContainer(rawPage(configs))
+      const imageConfig =
+        params.modal && params.modalStyle === 'image'
+          ? buildModalImageContainer()
+          : null
+      await hub.rawBridge.rebuildPageContainer(rawPage(configs, imageConfig))
       notifyTextUpdate()
+      // 画像データは rebuild 時には送れない → 生成後に直列送信（busyRef がこの
+      // render 全体を直列化しているので updateImageRawData の並行送信は起きない）。
+      if (imageConfig) {
+        // imageData は PNG のバイト列。生画素を渡すと host が decode できず不可視になる。
+        const pngBytes = encodeModalPng(buildModalImage(params))
+        await hub.rawBridge.updateImageRawData(
+          new ImageRawDataUpdate({
+            containerID: imageConfig.containerID,
+            containerName: imageConfig.containerName,
+            imageData: pngBytes,
+          }),
+        )
+      }
     } catch (err) {
       if (!renderErrorLoggedRef.current) {
         renderErrorLoggedRef.current = true
