@@ -21,78 +21,78 @@ Always use:
 Reason:
 grep is not installed on this machine and commands will fail.
 
-## 保護ファイル（上書き禁止）
+## Protected Files (do not overwrite)
 
-- **`app/preview/design-mock.html` は UI デザインの正本（手作りモック・読み取り専用 chmod 444）**
-- このファイルへの書き込み・cp・再生成出力は禁止。`bun run preview:screens` の出力先は `app/preview/index.html` のみ
-- デザイン変更はユーザーの明示承認後に chmod で解除してから行う
+- **`app/preview/design-mock.html` is the canonical source of the UI design (a hand-built mock; read-only, chmod 444).**
+- Writing to, copying over, or regenerating output into this file is forbidden. The only output target for `bun run preview:screens` is `app/preview/index.html`.
+- Design changes may only be made after explicit user approval, and only after unlocking the file with chmod.
 
-## バージョン表示付きアプリの作業ルール（必読）
+## Working Rules for Apps That Display a Version (must read)
 
-以下のアプリは画面にアプリ版（app.json の `version`）を表示する仕組みを持つ。
-**これらのアプリのコードを変更する作業を始める前に、必ず該当 `app.json` の `version` を確認し、patch を 1 つ上げてから作業する**（特別な指示がない限り）。
+The following apps display the app version (the `version` in `app.json`) on screen.
+**Before starting any work that changes the code of these apps, always check the `version` in the relevant `app.json` and bump the patch by one before working** (unless otherwise instructed).
 
-- 例: `0.0.1` → `0.0.2`、`0.2.3` → `0.2.4`
-- 対象アプリ:
-  - `apps/hisho/app.json`（ステータスバーに `HISHO v<version>`）
-  - `apps/g2hermes/app.json`（ヘッダーに `G2 Hermes v<version>`）
-- ユーザーが具体的な version を指定した場合（例: minor/major を上げる、特定値にする）はそれに従う。
+- Examples: `0.0.1` -> `0.0.2`, `0.2.3` -> `0.2.4`
+- Target apps:
+  - `apps/hisho/app.json` (shows `HISHO v<version>` in the status bar)
+  - `apps/g2hermes/app.json` (shows `G2 Hermes v<version>` in the header)
+- If the user specifies a concrete version (e.g., bump minor/major, or set a specific value), follow that instead.
 
-仕組み（共通）: `app.json` の `version` を `vite.config.ts` の `define` で `__APP_VERSION__` として build 時にリテラル注入し、画面コードが `appVersion()` 経由で表示する。Vite を介さない実行（`bun test`）は `'0.0.0-dev'` にフォールバックする。
+How it works (common): the `version` in `app.json` is injected as a literal `__APP_VERSION__` at build time via the `define` option in `vite.config.ts`, and the screen code displays it through `appVersion()`. Runs that do not go through Vite (`bun test`) fall back to `'0.0.0-dev'`.
 
-## 配布ビルド・パッケージング規約（.ehpk / 絶対厳守）
+## Distribution Build / Packaging Rules (.ehpk / absolutely mandatory)
 
-`.ehpk` 配布パッケージを作るときは、以下を**毎回**守る。過去に worktree でビルドして ENV 欠落の壊れた .ehpk を配布した事故あり（2026-06-10）。
+When building an `.ehpk` distribution package, follow the rules below **every time**. There was a past incident (2026-06-10) where building in a worktree produced a broken `.ehpk` with missing ENV that got distributed.
 
-1. **`.env` のある場所でビルドする。** `apps/<app>/.env`（例 g2hermes の `VITE_BRIDGE_BASE` / `VITE_BRIDGE_TOKEN`）は **gitignore 済み**。git worktree には追跡ファイルしか入らないため `.env` が存在せず、Vite が `import.meta.env.VITE_*` を **undefined のまま焼き込み、実機で接続エラーになる**。
-   - worktree でビルドするなら build 前に必ず `cp <main checkout>/apps/<app>/.env apps/<app>/.env`（gitignore 済みでコミットされない）。または **main チェックアウト側でビルドする**。
-2. **手順は build → pack の順。** `bun run build`（= `tsc -b && vite build`、ここで ENV と `__APP_VERSION__` を注入）→ `evenhub pack app.json dist -o <name>.ehpk`。`dist/` を作らず pack するのは禁止。
-3. **CLI は `evenhub`（グローバル `~/.bun/bin/evenhub`）を直接呼ぶ。`npx evenhub` は禁止**（npm の別パッケージ `evenhub` を 404 で引く）。
-4. **pack 前後に bundle 検証を必ず行う（grep で判定）。**
-   - ENV: `rg -o "<実 BASE 値, 例 100.64.0.1:8787>" dist/assets/*.js` がヒットすること。**警告文字列 `VITE_BRIDGE_BASE / VITE_BRIDGE_TOKEN が未設定です` は常に bundle に含まれる**ので、これの有無で判定してはいけない。実値で見る。
-   - version: `rg -o "<x.y.z>" dist/assets/*.js` がヒットすること（app.json 由来なので ENV と無関係に通る → 「version が入っているから OK」と誤判定しない）。
-   - build ログに `VITE_BRIDGE_BASE / VITE_BRIDGE_TOKEN が未設定です` の警告が出ていないこと。
+1. **Build where the `.env` exists.** `apps/<app>/.env` (e.g., g2hermes's `VITE_BRIDGE_BASE` / `VITE_BRIDGE_TOKEN`) is **gitignored**. A git worktree contains only tracked files, so `.env` is absent there, and Vite bakes `import.meta.env.VITE_*` in **as undefined, causing connection errors on the device**.
+   - If you must build in a worktree, always run `cp <main checkout>/apps/<app>/.env apps/<app>/.env` before building (it is gitignored and won't be committed). Or **build from the main checkout**.
+2. **Order is build -> pack.** `bun run build` (= `tsc -b && vite build`, which injects ENV and `__APP_VERSION__`) -> `evenhub pack app.json dist -o <name>.ehpk`. Packing without first producing `dist/` is forbidden.
+3. **Call `evenhub` (the global `~/.bun/bin/evenhub`) directly. `npx evenhub` is forbidden** (it resolves a different npm package `evenhub` and 404s).
+4. **Always verify the bundle before and after pack (via rg).**
+   - ENV: `rg -o "<actual BASE value, e.g. 100.64.0.1:8787>" dist/assets/*.js` must hit. **A `VITE_BRIDGE_BASE` / `VITE_BRIDGE_TOKEN`-not-set warning string is always included in the bundle**, so do not judge by its presence -- verify by the actual value.
+   - version: `rg -o "<x.y.z>" dist/assets/*.js` must hit (it comes from app.json, so it passes regardless of ENV -> do not mistakenly conclude "version is in, so it's OK").
+   - The build log must not show the `VITE_BRIDGE_BASE` / `VITE_BRIDGE_TOKEN`-not-set warning.
 
-## リポジトリの目的
+## Purpose of This Repository
 
-Even Realities のスマートグラス **Even G2** 向けアプリ（Even Hub プラグイン）を開発する個人の趣味プロジェクト。Even Realities 社とは無関係（非公式）。
+A personal hobby project building apps (Even Hub plugins) for Even Realities' smart glasses **Even G2**. Unaffiliated with Even Realities (unofficial).
 
-現状は **`docs/` の日本語リファレンスのみでアプリコードは未作成**。今後このリポジトリ内にアプリを追加していく予定。
+The reference docs under `docs/` are an unofficial Japanese summary of the official documentation; app code lives under `apps/`, and more apps will be added to this repository over time.
 
-## everything-evenhub プラグイン
+## everything-evenhub Plugin
 
-このリポジトリでは Even Realities 公式の Claude Code プラグイン **everything-evenhub** を導入済み。G2 アプリの作業では対応するスキルを必ず使うこと:
+This repository has the official Even Realities Claude Code plugin **everything-evenhub** installed. When working on G2 apps, always use the corresponding skills:
 
-- 新規アプリの雛形: `quickstart` / `template`
-- UI 構築: `glasses-ui`、入力処理: `handle-input`、デバイス機能: `device-features`
-- テスト: `test-with-simulator` / `simulator-automation`
-- API 検索: `sdk-reference` / `cli-reference` / `design-guidelines`
-- ビルド・公開: `build-and-deploy`
+- New app scaffolding: `quickstart` / `template`
+- UI building: `glasses-ui`; input handling: `handle-input`; device features: `device-features`
+- Testing: `test-with-simulator` / `simulator-automation`
+- API lookup: `sdk-reference` / `cli-reference` / `design-guidelines`
+- Build / publish: `build-and-deploy`
 
-スキルの使い分け詳細は `docs/ai-tooling/skill-catalog.md` を参照。
+See `docs/ai-tooling/skill-catalog.md` for details on which skill to use when.
 
-## Even Hub アプリの基本構造（docs の要点）
+## Basic Structure of an Even Hub App (key points from docs)
 
-- **アプリの実体はスマートフォン上の WebView で動く**。グラスはディスプレイ表示と入力イベント発行のみ（`docs/getting-started/04-architecture.md`）
-- 構成は「標準的な Vite + TypeScript の Web プロジェクト + `app.json` マニフェスト」。Even 固有の依存は `@evenrealities/even_hub_sdk` の 1 つだけ
-- ディスプレイは **576×288px・4bit 緑階調**。CSS/DOM はなく「コンテナ」方式（画像最大 4、その他最大 8、必ず 1 つに `isEventCapture: 1`）。詳細は `docs/guides/03-display-ui.md`
-- ネットワークは `app.json` ホワイトリスト **と** サーバー側 CORS の両方が必要（`docs/guides/06-networking.md`）
+- **The app itself runs in a WebView on the smartphone.** The glasses only render the display and emit input events (`docs/getting-started/04-architecture.md`).
+- The setup is "a standard Vite + TypeScript web project + an `app.json` manifest." The only Even-specific dependency is `@evenrealities/even_hub_sdk`.
+- The display is **576x288px, 4-bit green grayscale**. There is no CSS/DOM; it uses a "container" model (up to 4 images, up to 8 others, exactly one must have `isEventCapture: 1`). See `docs/guides/03-display-ui.md`.
+- Networking requires **both** the `app.json` whitelist **and** server-side CORS (`docs/guides/06-networking.md`).
 
-### CLI（アプリ作成後に使用）
+### CLI (used after creating an app)
 
-`evenhub` と `eh` は同一コマンド（`@evenrealities/evenhub-cli`）:
+`evenhub` and `eh` are the same command (`@evenrealities/evenhub-cli`):
 
 ```bash
-evenhub init                          # app.json 雛形生成
-evenhub qr --url "http://<ip>:5173"   # 実機サイドロード用 QR（ホットリロード対応）
-evenhub pack app.json dist -o app.ehpk # 配布パッケージ作成
+evenhub init                          # generate app.json scaffold
+evenhub qr --url "http://<ip>:5173"   # QR for sideloading to the device (supports hot reload)
+evenhub pack app.json dist -o app.ehpk # create distribution package
 ```
 
-## docs/ の執筆規約
+## Writing Conventions for docs/
 
-`docs/` は公式ドキュメント（https://hub.evenrealities.com/docs/）の非公式日本語要約。編集時は既存ページの形式に揃える:
+`docs/` is an unofficial Japanese summary of the official documentation (https://hub.evenrealities.com/docs/). When editing, match the format of existing pages:
 
-1. 冒頭に `> 原文: <URL>` と非公式要約である旨の注記
-2. 末尾に `[← 前へ](...) | [次へ →](...)` のナビゲーションリンク
-3. ページを追加・削除したら `docs/README.md` の目次も更新
-4. 内容を公式から取り直した場合は `docs/README.md` の「要約の基準日」を更新
+1. At the top, a blockquote linking the original source URL plus a note that this is an unofficial summary.
+2. At the bottom, previous/next navigation links.
+3. When a page is added or removed, update the table of contents in `docs/README.md` as well.
+4. When content is re-derived from the official source, update the "summary baseline date" entry in `docs/README.md`.
