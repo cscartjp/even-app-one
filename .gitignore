@@ -28,6 +28,8 @@ npm-debug.log*
 .claude/
 .harness-mem/
 /skills/
+.serena/
+headroom_memory.db
 
 /out/
 .harness-worktrees/
