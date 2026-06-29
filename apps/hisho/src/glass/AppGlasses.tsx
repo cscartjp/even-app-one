@@ -1,3 +1,4 @@
+import { waitForEvenAppBridge } from '@evenrealities/even_hub_sdk'
 import { createScreenMapper } from 'even-toolkit/glass-router'
 import { useFlashPhase } from 'even-toolkit/useFlashPhase'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -77,57 +78,33 @@ export function AppGlasses() {
     }
   }, [])
 
-  // ベストエフォートで現在地を監視（HTTPS等で不可なら既定駅のまま）。
-  // Hub の WebView では getCurrentPosition(timeout付き) が初回フィックス前に
-  // タイムアウトしやすく、コミュニティでは watchPosition の動作実績あり
-  // （docs/community/jp-articles/02-bigdra-sdk-features.md）。
-  // タイムアウトは設けず、フィックスが来るたびに原点を更新する。
-  // 【GPS 診断・一時コード】Hub Beta 経由でも GPS 失敗が続くため、失敗箇所を
-  // グルメ画面ヘッダーの originLabel に出して切り分ける。原因判明後は
-  // サイレントフォールバック（既定駅のまま）に戻すこと。
-  // 表示: [API無]=geolocation 未ブリッジ / [待機:g|d|p]=コールバック未着(+権限状態) /
-  //       [E1|E2|E3:g|d|p]=拒否|測位不能|タイムアウト / 「現在地」=成功
-  // 手動選択駅がある場合: GPS 診断表示より手動駅名を優先（診断は自動モード時のみ意味を持つ）
+  // ベストエフォートで現在地を取得（取れなければ既定駅のまま）。
+  // SDK 0.0.11 のネイティブ位置 API bridge.getAppLocation()（ホスト経由）を使う。
+  // 従来の WebView 標準 navigator.geolocation は Hub 経由でも取得できなかったため不採用
+  // （Android 実機で getAppLocation は成功・2026-06-29 確認）。
+  // 自動モード（手動選択駅なし）のときだけ、起動時に 1 回だけ取得する。
   useEffect(() => {
-    // 手動選択駅がある場合は watchPosition を張らない
-    // （解除されると effect が再実行され再登録される）
+    // 手動選択駅があるときは現在地を取らない（その駅を原点にする）
     if (selectedStation !== null) return
-    let gotFix = false
-    let perm = ''
-    let err = ''
-    const renderNote = () => {
-      if (gotFix) return
-      setOriginLabel(
-        `${defaultOriginLabel}[${[err || '待機', perm].filter(Boolean).join(':')}]`,
-      )
-    }
-    if (!('geolocation' in navigator)) {
-      setOriginLabel(`${defaultOriginLabel}[API無]`)
-      return
-    }
-    renderNote()
-    // 権限状態も証拠として取る（permissions API 未対応の WebView では無視）
-    navigator.permissions
-      ?.query({ name: 'geolocation' })
-      .then((s) => {
-        perm = s.state[0] ?? ''
-        renderNote()
-      })
-      .catch(() => {})
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        gotFix = true
-        setOrigin({ lat: pos.coords.latitude, lon: pos.coords.longitude })
+    let cancelled = false
+    void (async () => {
+      try {
+        // dev / シミュレーターではブリッジが来ないので 3 秒で打ち切る
+        const bridge = await Promise.race([
+          waitForEvenAppBridge(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+        ])
+        if (cancelled || !bridge) return
+        const loc = await bridge.getAppLocation({ timeoutMs: 15000 })
+        if (cancelled || !loc) return
+        setOrigin({ lat: loc.latitude, lon: loc.longitude })
         setOriginLabel('現在地')
-      },
-      (e) => {
-        err = `E${e.code}`
-        renderNote()
-      },
-      { maximumAge: 60000 },
-    )
+      } catch {
+        // 取得失敗時は既定駅のまま（origin / originLabel は初期値を維持）
+      }
+    })()
     return () => {
-      navigator.geolocation.clearWatch(watchId)
+      cancelled = true
     }
   }, [selectedStation])
 
