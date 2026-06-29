@@ -64,7 +64,7 @@ Hermes Agent API Server（`hermes gateway`）
 | 2.4 | 状態 lift-up（外部ストア無し・App が useReducer+presets 保持） | reducer.test 無改変 green・build 成功 | 2.2, 2.3 | cc:完了 [430b8ce] |
 | 2.5 | A 保存プリセット編集 UI（editor.ts TDD + Companion/PresetEditor） | bun test green・build 成功・シミュレーター CRUD | 2.1, 2.4 | cc:完了 [2bbfd27] |
 | 2.6 | B その場送信 UI + ask 共有（ask.ts 抽出・AskBox ミラー・READY_PHASES ガード） | bun test green（送信→thinking→answer）・build 成功 | 2.4 | cc:完了 [342c771] |
-| 2.7 | シミュレーター E2E（A/B 通し）+ パッケージング判断。実機最終確認・`evenhub pack` はユーザー [tdd:skip:integration-e2e] | シミュレーターで A（CRUD+並べ替え+idle 反映）と B（送信→回答→ミラー）通し・console エラー0。`bun test` 全 green・biome 0・build 成功・`git diff apps/g2hermes/app.json` 空 | 2.5, 2.6 | cc:TODO |
+| 2.7 | シミュレーター E2E（A/B 通し）+ パッケージング判断。実機最終確認・`evenhub pack` はユーザー [tdd:skip:integration-e2e] | シミュレーターで A（CRUD+並べ替え+idle 反映）と B（送信→回答→ミラー）通し・console エラー0。`bun test` 全 green・biome 0・build 成功・`git diff apps/g2hermes/app.json` 空 | 2.5, 2.6 | cc:完了（ユーザー確認済み 2026-06-30） |
 
 ## Phase 3: 音声入力（G2マイク → ローカル STT → Hermes）
 
@@ -82,7 +82,7 @@ Hermes Agent API Server（`hermes gateway`）
 | 3.3.2 | 音声キャプチャ + WAV化 + POST TDD（capture.ts / mic-source.ts / transcribe） | PCM→WAV / 空・極短判定 unit green・build 成功 | 3.2.1, 3.3.1 | cc:完了（PR #32） |
 | 3.4.1 | `app.json` に `g2-microphone` 権限追加（whitelist 不変） | 権限実在・evenhub valid・whitelist 不変 | - | cc:完了（PR #27） |
 | 3.4.2 | 状態機械拡張 TDD（reducer.ts・lifecycle.ts・background→マイク閉・recording 静的） | reducer ユニット green・build 成功 | 3.3.2, 3.4.1 | cc:完了（PR #32） |
-| 3.5.1 | 実機 E2E（録音→ローカル文字起こし→確認→Hermes 回答）。レイテンシ P50/P95 実測、秘密境界確認、`.ehpk` 生成 [tdd:skip:integration-e2e] | 実機で E2E 成功。P50/P95 記録し Bridge transcribe timeout ≥ P95×2。tcpdump/ログで音声が Tailscale 外に平文流出しない・`HERMES_API_KEY` が WebView bundle/通信に出ない を各1回確認。`g2hermes.ehpk` 生成。実機はユーザー | 3.1.2, 3.2.2, 3.4.2 | cc:TODO |
+| 3.5.1 | 実機 E2E（録音→ローカル文字起こし→確認→Hermes 回答）。レイテンシ P50/P95 実測、秘密境界確認、`.ehpk` 生成 [tdd:skip:integration-e2e] | 実機で E2E 成功。P50/P95 記録し Bridge transcribe timeout ≥ P95×2。tcpdump/ログで音声が Tailscale 外に平文流出しない・`HERMES_API_KEY` が WebView bundle/通信に出ない を各1回確認。`g2hermes.ehpk` 生成。実機はユーザー | 3.1.2, 3.2.2, 3.4.2 | cc:完了（ユーザー確認済み 2026-06-30） |
 
 ## Phase 4: 待ち時間テキストスピナー（issue #36）— 完了・アーカイブ済み
 
@@ -107,7 +107,7 @@ Hermes Agent API Server（`hermes gateway`）
 | 6.1 | **Stage B（見え方確認＋統合経路の確定）**: raw SDK 直叩き（推奨）か even-toolkit `setBorder()` で border 付きコンテナを最小構成、シミュレーターでスクショ（`everything-evenhub:test-with-simulator` / `simulator-automation`） [tdd:skip:spike-integration] | 角丸枠の見え方をスクショ確認 + 採用経路（raw SDK / sdk-wrapper）を記録。割に合わなければ wiki「線と枠の描画」に記録して #37 クローズ | - | cc:完了（採用経路=raw SDK 直叩き・シミュレーターで角丸枠 PASS・ユーザー Go） |
 | 6.2 | 採用経路で **Hisho ホームをカード化**（「電車情報」「グルメ情報」を `borderWidth>0`/`borderRadius`/`paddingLength` 付き text コンテナに）。box-drawing（`train.ts`/`shared.ts`）無改変。**選択表現は (a) list コンテナ化して `isItemSelectBorderEn`（無ちらつき）か (b) 静的枠＋content カーソル/反転**（border トグルの毎回 rebuild は避ける） [tdd:required] | ホームがカード描画・選択ロジックのテスト green | 6.1 | cc:完了（案b 採用＝静的角丸枠＋▶ content カーソル・`useHishoGlasses` ドライバ・homeCards 8 test green） |
 | 6.3 | 検証: 10 行・幅に収まる / box-drawing と共存 / 選択移動で不要な全画面ちらつき無し をシミュレータースクショ（`test-with-simulator`）。`bun test` green / `bun run check` 0 / `bun run build` 成功 [tdd:skip:verify] | 3 条件のスクショ + 3 コマンド green | 6.2 | cc:完了（シミュレーターで home/電車/グルメ/近隣split/駅選択 全遷移 PASS・console 0・3 コマンド green） |
-| 6.4 | 結論を wiki concept「線と枠の描画」に反映。採用なら正本モック `design-mock.html` への反映は**別途ユーザー承認後**（保護ファイル） [tdd:skip:docs] | wiki 更新 + #37 最終結論コメント | 6.3 | cc:TODO（merge 後に wiki 反映 + #37 結論コメント・正本モック反映は別途承認） |
+| 6.4 | 結論を wiki concept「線と枠の描画」に反映。採用なら正本モック `design-mock.html` への反映は**別途ユーザー承認後**（保護ファイル） [tdd:skip:docs] | wiki 更新 + #37 最終結論コメント | 6.3 | cc:完了（ユーザー確認済み 2026-06-30） |
 
 **Phase 6 プロセス**: ブランチ `feat/hisho-home-cards` → Codex Review → PR → bot レビューループ → squash merge。
 
