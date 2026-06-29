@@ -63,6 +63,14 @@
 |---|---|
 | [グルメ店データ: 福岡市「行ってみたい」](data/gourmet/README.md) | Google マップ保存リスト由来の 78 店舗・営業時間付き 50 件（JSON/CSV + `shops.ts` 用スニペット） |
 
+### 研究ノート（Research）
+
+公式ドキュメントの要約ではなく、実 API・実機を叩いて検証した独自の調査メモ。
+
+| ページ | 内容 |
+|---|---|
+| [Google Maps API で G2 ナビを作る](research/g2-google-maps-navigation.md) | Routes API / Geocoding / Maps Static API の使い方と、G2 画像表示の知見（輝度コントラスト・簡略化＋反転黒線・画像 200×100・テキスト TBT 主役）。実 API 検証（2026-06-29） |
+
 ## 原文
 
 - 公式ドキュメント: https://hub.evenrealities.com/docs/getting-started/overview
