@@ -9,10 +9,10 @@
       "name": "g2hermes",
       "version": "0.2.3",
       "dependencies": {
-        "@evenrealities/even_hub_sdk": "^0.0.10",
+        "@evenrealities/even_hub_sdk": "^0.0.11",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.0",
-        "even-toolkit": "^1.7.2",
+        "even-toolkit": "^1.7.7",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "react-router": "^7.0.0",
@@ -156,7 +156,7 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@evenrealities/even_hub_sdk": ["@evenrealities/even_hub_sdk@0.0.10", "", {}, "sha512-95zmlbFzyyh+TxPz5Wq8Ix4IxUDZzo/WJWAUXPQ/83kaU8R78MOYYBgKDM47Yw61LoEn+Ob5GNLDu/T9bj85xA=="],
+    "@evenrealities/even_hub_sdk": ["@evenrealities/even_hub_sdk@0.0.11", "", {}, "sha512-QLj15JmMbfPncl5hodTZEgQ42Dky85kvtlnqjEIsYZtvR4a5zWtdmUma0NDCNxhE+hxCjUpSGsu1uyDh1iUMdw=="],
 
     "@evenrealities/evenhub-cli": ["@evenrealities/evenhub-cli@0.1.13", "", { "dependencies": { "chalk": "^5.6.2", "commander": "^14.0.2", "inquirer": "^13.1.0", "js-yaml": "^4.1.1", "open": "^11.0.0", "qr-image": "^3.2.0", "qrcode-terminal": "^0.12.0", "zod": "^4.3.2" }, "peerDependencies": { "typescript": "^5" }, "bin": { "evenhub": "main.js", "eh": "main.js" } }, "sha512-glkkGfImds8ceh1YTbVvwuw7jlcSAKnI6Q7ATrDynKSvODs9/FV/R+0CliyCog3JJRTON0+EXBLW3lxU4x8NBQ=="],
 
@@ -406,7 +406,7 @@
 
     "es-toolkit": ["es-toolkit@1.47.0", "", {}, "sha512-n1GuoD0WEQZMBk5tttoZSqwgyLx01oqa5XsBmCHwPyNe1S9jPBEmtR2pSgp2kJuWE3ciFZ6yRHmY4pM4C3OOkw=="],
 
-    "even-toolkit": ["even-toolkit@1.7.2", "", { "dependencies": { "react-is": "^19.2.4", "recharts": "^3.8.0" }, "peerDependencies": { "@evenrealities/even_hub_sdk": ">=0.0.10", "class-variance-authority": ">=0.7.0", "clsx": ">=2.0.0", "react": ">=18.0.0", "react-router": ">=7.0.0", "tailwind-merge": ">=2.0.0" }, "optionalPeers": ["class-variance-authority", "clsx", "react", "react-router", "tailwind-merge"], "bin": { "even-toolkit": "bin/create.js" } }, "sha512-SEHI2Ht4eMbne/6KWcRtfZNgroU4j4YMHwQuwvnAaPqrsYKDHMKtCNP3CY5HKUWzzQZqGe5Sem0PyA4VUmnFEw=="],
+    "even-toolkit": ["even-toolkit@1.7.7", "", { "dependencies": { "@evenrealities/pretext": "^0.1.4", "react-is": "^19.2.4", "recharts": "^3.8.0" }, "peerDependencies": { "@evenrealities/even_hub_sdk": ">=0.0.10", "class-variance-authority": ">=0.7.0", "clsx": ">=2.0.0", "react": ">=18.0.0", "react-router": ">=7.0.0", "tailwind-merge": ">=2.0.0" }, "optionalPeers": ["class-variance-authority", "clsx", "react", "react-router", "tailwind-merge"], "bin": { "even-toolkit": "bin/create.js" } }, "sha512-l7WrEePOmE1SyJe+TbfrIl17or2Ei0+Huxh1GvIESTmrajjR84XreL9ua+x5TCKr3lKtWzxWuUvppXqN074EjQ=="],
 
     "eventemitter3": ["eventemitter3@5.0.4", "", {}, "sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw=="],
 
@@ -644,11 +644,19 @@
 
     "bun-types/@types/node": ["@types/node@25.9.2", "", { "dependencies": { "undici-types": ">=7.24.0 <7.24.7" } }, "sha512-G05zqtJhcDLb8uslf5EjCxXg9G1KQxiV8OS0R26IC//Eoyitzqe8z37I7cqvnZlrlSfgocQRfSn/AHBZJJFyGw=="],
 
-    "hisho/@evenrealities/even_hub_sdk": ["@evenrealities/even_hub_sdk@0.0.11", "", {}, "sha512-QLj15JmMbfPncl5hodTZEgQ42Dky85kvtlnqjEIsYZtvR4a5zWtdmUma0NDCNxhE+hxCjUpSGsu1uyDh1iUMdw=="],
+    "hisho/even-toolkit": ["even-toolkit@1.7.2", "", { "dependencies": { "react-is": "^19.2.4", "recharts": "^3.8.0" }, "peerDependencies": { "@evenrealities/even_hub_sdk": ">=0.0.10", "class-variance-authority": ">=0.7.0", "clsx": ">=2.0.0", "react": ">=18.0.0", "react-router": ">=7.0.0", "tailwind-merge": ">=2.0.0" }, "optionalPeers": ["class-variance-authority", "clsx", "react", "react-router", "tailwind-merge"], "bin": { "even-toolkit": "bin/create.js" } }, "sha512-SEHI2Ht4eMbne/6KWcRtfZNgroU4j4YMHwQuwvnAaPqrsYKDHMKtCNP3CY5HKUWzzQZqGe5Sem0PyA4VUmnFEw=="],
+
+    "imu-lab/@evenrealities/even_hub_sdk": ["@evenrealities/even_hub_sdk@0.0.10", "", {}, "sha512-95zmlbFzyyh+TxPz5Wq8Ix4IxUDZzo/WJWAUXPQ/83kaU8R78MOYYBgKDM47Yw61LoEn+Ob5GNLDu/T9bj85xA=="],
+
+    "imu-lab/even-toolkit": ["even-toolkit@1.7.2", "", { "dependencies": { "react-is": "^19.2.4", "recharts": "^3.8.0" }, "peerDependencies": { "@evenrealities/even_hub_sdk": ">=0.0.10", "class-variance-authority": ">=0.7.0", "clsx": ">=2.0.0", "react": ">=18.0.0", "react-router": ">=7.0.0", "tailwind-merge": ">=2.0.0" }, "optionalPeers": ["class-variance-authority", "clsx", "react", "react-router", "tailwind-merge"], "bin": { "even-toolkit": "bin/create.js" } }, "sha512-SEHI2Ht4eMbne/6KWcRtfZNgroU4j4YMHwQuwvnAaPqrsYKDHMKtCNP3CY5HKUWzzQZqGe5Sem0PyA4VUmnFEw=="],
 
     "light-my-request/process-warning": ["process-warning@4.0.1", "", {}, "sha512-3c2LzQ3rY9d0hc1emcsHhfT9Jwz0cChib/QN89oME2R451w5fy3f0afAhERFZAwrbDU43wk12d0ORBpDVME50Q=="],
 
     "thread-stream/real-require": ["real-require@1.0.0", "", {}, "sha512-P4nbQYQfePJxRSmY+v/KINxVucm4NF3p3s7pJveMTtom52FR4YGltUQLB8idDXwDDWW+eYrWDFbuzUnjoWHF7g=="],
+
+    "ui-lab/@evenrealities/even_hub_sdk": ["@evenrealities/even_hub_sdk@0.0.10", "", {}, "sha512-95zmlbFzyyh+TxPz5Wq8Ix4IxUDZzo/WJWAUXPQ/83kaU8R78MOYYBgKDM47Yw61LoEn+Ob5GNLDu/T9bj85xA=="],
+
+    "ui-lab/even-toolkit": ["even-toolkit@1.7.2", "", { "dependencies": { "react-is": "^19.2.4", "recharts": "^3.8.0" }, "peerDependencies": { "@evenrealities/even_hub_sdk": ">=0.0.10", "class-variance-authority": ">=0.7.0", "clsx": ">=2.0.0", "react": ">=18.0.0", "react-router": ">=7.0.0", "tailwind-merge": ">=2.0.0" }, "optionalPeers": ["class-variance-authority", "clsx", "react", "react-router", "tailwind-merge"], "bin": { "even-toolkit": "bin/create.js" } }, "sha512-SEHI2Ht4eMbne/6KWcRtfZNgroU4j4YMHwQuwvnAaPqrsYKDHMKtCNP3CY5HKUWzzQZqGe5Sem0PyA4VUmnFEw=="],
 
     "bun-types/@types/node/undici-types": ["undici-types@7.24.6", "", {}, "sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg=="],
   }

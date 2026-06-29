@@ -17,10 +17,10 @@
     "check:fix": "biome check --write ."
   },
   "dependencies": {
-    "@evenrealities/even_hub_sdk": "^0.0.10",
+    "@evenrealities/even_hub_sdk": "^0.0.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.0",
-    "even-toolkit": "^1.7.2",
+    "even-toolkit": "^1.7.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router": "^7.0.0",
