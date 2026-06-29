@@ -90,10 +90,14 @@ export function AppGlasses() {
     void (async () => {
       try {
         // dev / シミュレーターではブリッジが来ないので 3 秒で打ち切る
+        let timer: ReturnType<typeof setTimeout> | undefined
         const bridge = await Promise.race([
           waitForEvenAppBridge(),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+          new Promise<null>((resolve) => {
+            timer = setTimeout(() => resolve(null), 3000)
+          }),
         ])
+        clearTimeout(timer) // bridge 即解決時に残るタイマーを掃除
         if (cancelled || !bridge) return
         const loc = await bridge.getAppLocation({ timeoutMs: 15000 })
         if (cancelled || !loc) return

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
   HOME_GOURMET_INDEX,
-  HOME_STATION_INDEX,
+  HOME_STATION_SETTING_INDEX,
   HOME_TRAIN_INDEX,
   type HomeCardModel,
   homeCardConfigs,
@@ -10,13 +10,14 @@ import {
 
 const baseModel: HomeCardModel = {
   statusBar: 'HISHO v9.9.9        2026年6月10日（水） 10:00',
-  stationLabel: '最寄駅: 大保駅',
+  stationLabel: '最寄り駅：大保駅',
   trainLines: [
     '電車情報',
     '  次発 16:11  天神方面',
     '       16:20  大牟田方面',
   ],
   gourmetLabel: 'グルメ情報',
+  stationSettingLabel: '最寄り駅設定',
   hint: '↕選択 タップ決定',
   highlightedIndex: HOME_TRAIN_INDEX,
 }
@@ -26,20 +27,21 @@ function byName(model: HomeCardModel, name: string) {
 }
 
 describe('homeCardConfigs (issue #37 Phase 6.2)', () => {
-  test('6 コンテナ・isEventCapture は 1 つだけ・ID は一意', () => {
+  test('7 コンテナ・isEventCapture は 1 つだけ・ID は一意', () => {
     const configs = homeCardConfigs(baseModel)
-    expect(configs).toHaveLength(6)
+    expect(configs).toHaveLength(7)
     expect(configs.filter((c) => c.isEventCapture === 1)).toHaveLength(1)
     const ids = configs.map((c) => c.containerID)
     expect(new Set(ids).size).toBe(ids.length)
   })
 
-  test('電車/グルメは角丸枠、ステータスバー/最寄駅/ヒントは枠なし', () => {
+  test('電車/グルメは角丸枠、ステータスバー/最寄り駅/最寄り駅設定/ヒントは枠なし', () => {
     expect(byName(baseModel, 'card-train')?.borderRadius).toBeGreaterThan(0)
     expect(byName(baseModel, 'card-gourmet')?.borderRadius).toBeGreaterThan(0)
     expect(byName(baseModel, 'card-train')?.borderWidth).toBeGreaterThan(0)
     expect(byName(baseModel, 'status')?.borderWidth).toBe(0)
     expect(byName(baseModel, 'station')?.borderWidth).toBe(0)
+    expect(byName(baseModel, 'station-setting')?.borderWidth).toBe(0)
     expect(byName(baseModel, 'hint')?.borderWidth).toBe(0)
   })
 
@@ -50,10 +52,17 @@ describe('homeCardConfigs (issue #37 Phase 6.2)', () => {
     expect(byName(m, 'card-gourmet')?.content).not.toContain('▶')
   })
 
-  test('選択を移すとカーソルが移動する（最寄駅 / グルメ）', () => {
-    const station = { ...baseModel, highlightedIndex: HOME_STATION_INDEX }
-    expect(byName(station, 'station')?.content).toContain('▶')
-    expect(byName(station, 'card-train')?.content).not.toContain('▶')
+  test('選択を移すとカーソルが移動する（グルメ / 最寄り駅設定）', () => {
+    const setting = {
+      ...baseModel,
+      highlightedIndex: HOME_STATION_SETTING_INDEX,
+    }
+    expect(byName(setting, 'station-setting')?.content).toContain(
+      '▶ 最寄り駅設定',
+    )
+    expect(byName(setting, 'card-train')?.content).not.toContain('▶')
+    // 最寄り駅は情報表示なので何を選んでもカーソルは付かない
+    expect(byName(setting, 'station')?.content).not.toContain('▶')
 
     const gourmet = { ...baseModel, highlightedIndex: HOME_GOURMET_INDEX }
     expect(byName(gourmet, 'card-gourmet')?.content).toContain('▶ グルメ情報')
@@ -85,14 +94,15 @@ describe('homeCardModel', () => {
       now,
     )
     expect(m.statusBar).toContain('HISHO')
-    expect(m.stationLabel).toContain('最寄駅:')
+    expect(m.stationLabel).toContain('最寄り駅：')
     expect(m.trainLines[0]).toBe('電車情報')
     expect(m.gourmetLabel).toBe('グルメ情報')
+    expect(m.stationSettingLabel).toBe('最寄り駅設定')
     expect(m.highlightedIndex).toBe(HOME_TRAIN_INDEX)
   })
 
-  test('手動選択駅は "(固定)" を付ける', () => {
+  test('手動選択駅は "（固定）" を付ける', () => {
     const m = homeCardModel({ lat: 33.39, lon: 130.46 }, '大保', 0, now)
-    expect(m.stationLabel).toContain('(固定)')
+    expect(m.stationLabel).toContain('（固定）')
   })
 })

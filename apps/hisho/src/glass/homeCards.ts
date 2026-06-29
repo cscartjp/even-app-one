@@ -8,9 +8,9 @@ const DISPLAY_W = 576
 const DISPLAY_H = 288
 
 /** ホームの選択可能項目インデックス（home.ts と一致させること） */
-export const HOME_STATION_INDEX = 0
-export const HOME_TRAIN_INDEX = 1
-export const HOME_GOURMET_INDEX = 2
+export const HOME_TRAIN_INDEX = 0
+export const HOME_GOURMET_INDEX = 1
+export const HOME_STATION_SETTING_INDEX = 2
 
 /** 選択カーソル。選択行は '▶ '、非選択行は同じ幅の空白で左端を揃える（無ちらつき） */
 const CURSOR_SELECTED = '▶ '
@@ -29,7 +29,8 @@ export const HOME_CONTAINER_ID = {
   station: 3,
   train: 4,
   gourmet: 5,
-  hint: 6,
+  stationSetting: 6,
+  hint: 7,
 } as const
 
 /** raw SDK の TextContainerProperty に渡す素の構成（テスト可能なピュア表現） */
@@ -51,15 +52,17 @@ export interface CardContainerConfig {
 export interface HomeCardModel {
   /** ステータスバー（HISHO v… ＋ 右寄せ時計） */
   statusBar: string
-  /** 最寄駅ラベル（例: "最寄駅: 大保駅" / 固定時は "(固定)"） */
+  /** 最寄り駅ラベル（GPS 自動取得・情報表示／例: "最寄り駅：大保駅" / 固定時は "（固定）"） */
   stationLabel: string
   /** 電車カードの中身（1 行目=タイトル、以降=次発行） */
   trainLines: string[]
   /** グルメカードのタイトル */
   gourmetLabel: string
+  /** 最寄り駅設定（手動変更）のラベル */
+  stationSettingLabel: string
   /** 画面下のヒント行 */
   hint: string
-  /** 選択中インデックス（0=最寄駅 / 1=電車 / 2=グルメ） */
+  /** 選択中インデックス（0=電車 / 1=グルメ / 2=最寄り駅設定） */
   highlightedIndex: number
 }
 
@@ -85,8 +88,8 @@ export function homeCardModel(
   const station = nearestStation(origin)
   const stationLabel =
     selectedStation !== null
-      ? `最寄駅: ${station.name}駅(固定)`
-      : `最寄駅: ${station.name}駅`
+      ? `最寄り駅：${station.name}駅（固定）`
+      : `最寄り駅：${station.name}駅`
 
   const firstDir = station.directions[0]
   const trainLines = [
@@ -102,6 +105,7 @@ export function homeCardModel(
     stationLabel,
     trainLines,
     gourmetLabel: 'グルメ情報',
+    stationSettingLabel: '最寄り駅設定',
     hint: '↕選択 タップ決定',
     highlightedIndex,
   }
@@ -172,7 +176,7 @@ export function homeCardConfigs(model: HomeCardModel): CardContainerConfig[] {
       content: model.statusBar,
       isEventCapture: 0,
     },
-    // 最寄駅（選択可能・枠なし）
+    // 最寄り駅（GPS 自動取得・情報表示で非選択・枠なし）
     {
       containerID: HOME_CONTAINER_ID.station,
       containerName: 'station',
@@ -181,7 +185,7 @@ export function homeCardConfigs(model: HomeCardModel): CardContainerConfig[] {
       width: DISPLAY_W - 20,
       height: 26,
       ...noBorder,
-      content: withCursor(model.stationLabel, i === HOME_STATION_INDEX),
+      content: model.stationLabel,
       isEventCapture: 0,
     },
     // 電車カード（角丸枠・選択可能）
@@ -208,12 +212,27 @@ export function homeCardConfigs(model: HomeCardModel): CardContainerConfig[] {
       content: withCursor(model.gourmetLabel, i === HOME_GOURMET_INDEX),
       isEventCapture: 0,
     },
+    // 最寄り駅設定（選択可能・枠なし・最下段。手動で駅を変える画面へ）
+    {
+      containerID: HOME_CONTAINER_ID.stationSetting,
+      containerName: 'station-setting',
+      xPosition: 10,
+      yPosition: 202,
+      width: DISPLAY_W - 20,
+      height: 26,
+      ...noBorder,
+      content: withCursor(
+        model.stationSettingLabel,
+        i === HOME_STATION_SETTING_INDEX,
+      ),
+      isEventCapture: 0,
+    },
     // ヒント（枠なし）
     {
       containerID: HOME_CONTAINER_ID.hint,
       containerName: 'hint',
       xPosition: 10,
-      yPosition: 204,
+      yPosition: 232,
       width: DISPLAY_W - 20,
       height: 26,
       ...noBorder,
